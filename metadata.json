@@ -1,0 +1,6 @@
+{
+  "name": "AutoThreads",
+  "description": "Generator Utas Threads Berpola Referensi & Ramah Algoritma untuk Kreator dan UMKM Indonesia",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
