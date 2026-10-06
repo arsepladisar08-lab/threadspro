@@ -6,6 +6,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import { TEXT_MODEL, EMBED_MODEL, CONFIG } from "../config";
+import { storage } from "../lib/storage";
 import {
   IDEA_DNA_SYSTEM_PROMPT,
   WRITER_SYSTEM_PROMPT,
@@ -63,12 +64,16 @@ export const TASK_ZOD_SCHEMAS: Record<AITask, z.ZodSchema<any>> = {
 
 // Inisialisasi GoogleGenAI instance untuk browser (direct mode)
 let clientGenAI: GoogleGenAI | null = null;
+let lastApiKeyUsed: string | null = null;
 
-function getDirectAIClient(): GoogleGenAI {
-  if (!clientGenAI) {
-    const apiKey = (process.env.GEMINI_API_KEY || process.env.API_KEY || "").trim();
+async function getDirectAIClient(): Promise<GoogleGenAI> {
+  const customKey = await storage.getCustomApiKey();
+  const apiKey = (customKey || process.env.GEMINI_API_KEY || process.env.API_KEY || "").trim();
+
+  if (!clientGenAI || lastApiKeyUsed !== apiKey) {
+    lastApiKeyUsed = apiKey;
     if (!apiKey) {
-      console.warn("AutoThreads: GEMINI_API_KEY tidak ditemukan di environment.");
+      console.warn("AutoThreads: GEMINI_API_KEY tidak ditemukan di environment atau storage.");
     }
     clientGenAI = new GoogleGenAI({
       apiKey,
@@ -80,6 +85,36 @@ function getDirectAIClient(): GoogleGenAI {
     });
   }
   return clientGenAI;
+}
+
+/**
+ * Uji API Key Gemini secara mandiri
+ */
+export async function testGeminiApiKey(candidateKey: string): Promise<{ success: boolean; message: string }> {
+  const clean = candidateKey.trim();
+  if (!clean) {
+    return { success: false, message: "Kunci API tidak boleh kosong." };
+  }
+  try {
+    const testAi = new GoogleGenAI({
+      apiKey: clean,
+      httpOptions: {
+        headers: {
+          "User-Agent": "aistudio-build",
+        },
+      },
+    });
+    const resp = await testAi.models.generateContent({
+      model: TEXT_MODEL,
+      contents: "Tes koneksi: balas dengan kata 'OK'.",
+    });
+    if (resp.text) {
+      return { success: true, message: "API Key valid dan berhasil terhubung ke Google Gemini!" };
+    }
+    return { success: false, message: "Respons API kosong." };
+  } catch (err: any) {
+    return { success: false, message: err.message || "Gagal memverifikasi API Key." };
+  }
 }
 
 /**
@@ -98,9 +133,15 @@ export async function generateJSON<T = any>(
   // 1. Mode PROXY (Vercel Production)
   if (mode === "proxy") {
     try {
+      const customKey = await storage.getCustomApiKey();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (customKey) {
+        headers["x-gemini-api-key"] = customKey;
+      }
+
       const response = await fetch("/api/ai", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ task, input }),
       });
 
@@ -142,7 +183,7 @@ async function generateDirectJSON<T>(
   input: any,
   retryCount: number
 ): Promise<T> {
-  const ai = getDirectAIClient();
+  const ai = await getDirectAIClient();
   const systemInstruction = TASK_PROMPTS[task];
   const responseSchema = TASK_GEMINI_SCHEMAS[task];
   const zodSchema = TASK_ZOD_SCHEMAS[task];
@@ -192,7 +233,7 @@ async function generateDirectJSON<T>(
  * Menghitung embedding untuk teks menggunakan EMBED_MODEL
  */
 export async function embedTexts(texts: string[]): Promise<number[][]> {
-  const ai = getDirectAIClient();
+  const ai = await getDirectAIClient();
   const results: number[][] = [];
 
   for (const text of texts) {

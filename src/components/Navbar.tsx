@@ -80,11 +80,11 @@ export const Navbar: React.FC = () => {
           {/* Threads API Lab & Admin */}
           <Link
             to="/admin/api-lab"
-            className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-700 transition"
-            title="Threads API Lab & Manajemen Kuota"
+            className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 transition"
+            title="API Lab & Pengaturan Kunci API"
           >
             <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
-            <span className="text-[11px]">API Lab</span>
+            <span className="text-[11px]">API Lab & Kunci</span>
           </Link>
 
           {/* Profil Button */}

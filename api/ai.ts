@@ -54,9 +54,10 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ error: `Task '${task}' tidak dikenali oleh sistem.` });
   }
 
-  const apiKey = (process.env.GEMINI_API_KEY || process.env.API_KEY || "").trim();
+  const customHeaderKey = (req.headers["x-gemini-api-key"] || "").toString().trim();
+  const apiKey = (customHeaderKey || process.env.GEMINI_API_KEY || process.env.API_KEY || "").trim();
   if (!apiKey) {
-    return res.status(500).json({ error: "GEMINI_API_KEY belum dikonfigurasi di server." });
+    return res.status(500).json({ error: "GEMINI_API_KEY belum dikonfigurasi di server atau input mandiri." });
   }
 
   try {

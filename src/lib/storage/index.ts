@@ -17,6 +17,8 @@ const STORAGE_KEYS = {
   THREADS_ACCOUNT: "autothreads_account",
   THREADS_POSTS: "autothreads_posts",
   THREADS_TOKEN: "autothreads_token",
+  CUSTOM_API_KEY: "autothreads_custom_gemini_api_key",
+  THREADS_APP_CREDS: "autothreads_threads_app_creds",
 };
 
 // ==================== STORAGE IMPLEMENTATION ====================
@@ -198,6 +200,50 @@ export const storage = {
       await set(STORAGE_KEYS.THREADS_POSTS, posts);
     } catch {
       localStorage.setItem(STORAGE_KEYS.THREADS_POSTS, JSON.stringify(posts));
+    }
+  },
+
+  // Kunci API Mandiri Pengguna (Gemini API Key)
+  async getCustomApiKey(): Promise<string | null> {
+    try {
+      return (await get(STORAGE_KEYS.CUSTOM_API_KEY)) || null;
+    } catch {
+      return localStorage.getItem(STORAGE_KEYS.CUSTOM_API_KEY);
+    }
+  },
+
+  async saveCustomApiKey(key: string): Promise<void> {
+    const clean = key.trim();
+    try {
+      await set(STORAGE_KEYS.CUSTOM_API_KEY, clean);
+    } catch {
+      localStorage.setItem(STORAGE_KEYS.CUSTOM_API_KEY, clean);
+    }
+  },
+
+  async clearCustomApiKey(): Promise<void> {
+    try {
+      await del(STORAGE_KEYS.CUSTOM_API_KEY);
+    } catch {
+      localStorage.removeItem(STORAGE_KEYS.CUSTOM_API_KEY);
+    }
+  },
+
+  // Kredensial Meta Threads App (App ID & Secret)
+  async getThreadsAppCreds(): Promise<{ appId?: string; appSecret?: string } | null> {
+    try {
+      return (await get(STORAGE_KEYS.THREADS_APP_CREDS)) || null;
+    } catch {
+      const local = localStorage.getItem(STORAGE_KEYS.THREADS_APP_CREDS);
+      return local ? JSON.parse(local) : null;
+    }
+  },
+
+  async saveThreadsAppCreds(creds: { appId?: string; appSecret?: string }): Promise<void> {
+    try {
+      await set(STORAGE_KEYS.THREADS_APP_CREDS, creds);
+    } catch {
+      localStorage.setItem(STORAGE_KEYS.THREADS_APP_CREDS, JSON.stringify(creds));
     }
   },
 
