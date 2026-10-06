@@ -226,7 +226,7 @@ export const GeneratorPage: React.FC = () => {
   const auditCurrent = currentVariant ? auditVariant(currentVariant, rawIdea) : null;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 pb-24">
+    <div className="max-w-6xl mx-auto px-3 sm:px-5 md:px-6 py-6 pb-24">
       {/* Header Info */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>

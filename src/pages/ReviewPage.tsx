@@ -68,7 +68,7 @@ export const ReviewPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 pb-24 space-y-6">
+    <div className="max-w-4xl mx-auto px-3 sm:px-5 md:px-6 py-6 sm:py-8 pb-24 space-y-6">
       {/* Header */}
       <div>
         <div className="flex items-center gap-2">

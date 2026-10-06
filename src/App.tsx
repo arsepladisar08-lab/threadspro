@@ -1,12 +1,15 @@
 /**
  * AutoThreads App Root
- * Routing & Mobile-first Layout
+ * Responsive Layout (Mobile, Tablet, Desktop) with Minimalist shadcn/ui Standards
  */
 
-import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { Navbar } from "./components/Navbar";
+import { Sidebar } from "./components/Sidebar";
 import { BottomNav } from "./components/BottomNav";
+import { MobileDrawer } from "./components/MobileDrawer";
+import { UserGuideModal } from "./components/UserGuideModal";
 import { GeneratorPage } from "./pages/GeneratorPage";
 import { CalendarPage } from "./pages/CalendarPage";
 import { CheckerPage } from "./pages/CheckerPage";
@@ -17,16 +20,74 @@ import { BankPage } from "./pages/BankPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { ThreadsApiLabPage } from "./pages/ThreadsApiLabPage";
 import { AuthCallbackPage } from "./pages/AuthCallbackPage";
+import { storage } from "./lib/storage";
+import { UserProfile } from "./types";
 
-export default function App() {
+function AppContent() {
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  // Default collapsed/hidden on tablet & desktop as required
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    const saved = localStorage.getItem("autothreads_sidebar_collapsed");
+    return saved !== null ? saved === "true" : true;
+  });
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    storage.getProfile().then(setProfile);
+  }, []);
+
+  const handleToggleSidebar = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("autothreads_sidebar_collapsed", String(next));
+      return next;
+    });
+  };
+
+  // Global shortcut '?' untuk membuka panduan interaktif
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Abaikan jika sedang mengetik di input atau textarea
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement).isContentEditable
+      ) {
+        return;
+      }
+      if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+        e.preventDefault();
+        setIsGuideOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   return (
-    <BrowserRouter>
-      <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans antialiased selection:bg-indigo-500 selection:text-white">
-        {/* Navigation Bar */}
-        <Navbar />
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans antialiased selection:bg-indigo-500 selection:text-white">
+      {/* Top Navbar */}
+      <Navbar
+        isSidebarCollapsed={isSidebarCollapsed}
+        onToggleSidebar={handleToggleSidebar}
+        onOpenGuide={() => setIsGuideOpen(true)}
+        onOpenMobileMenu={() => setIsMobileDrawerOpen(true)}
+      />
 
-        {/* Main Content Area */}
-        <main className="flex-1 w-full">
+      {/* Main Work Area with Sidebar for Tablet & Desktop */}
+      <div className="flex-1 flex w-full min-h-[calc(100vh-4rem)]">
+        {/* Toggleable Collapsed Sidebar (Tablet & Desktop) */}
+        <Sidebar
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={handleToggleSidebar}
+          onOpenGuide={() => setIsGuideOpen(true)}
+          profile={profile}
+        />
+
+        {/* Dynamic Route Content */}
+        <main className="flex-1 min-w-0 w-full overflow-x-hidden pb-20 md:pb-8">
           <Routes>
             <Route path="/" element={<GeneratorPage />} />
             <Route path="/generator" element={<Navigate to="/" replace />} />
@@ -43,10 +104,36 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
-
-        {/* Bottom Nav for Mobile Devices (360px ready) */}
-        <BottomNav />
       </div>
+
+      {/* Mobile Touch-Friendly Bottom Bar */}
+      <BottomNav onOpenMenu={() => setIsMobileDrawerOpen(true)} />
+
+      {/* Mobile Touch-Friendly Slide Drawer */}
+      <MobileDrawer
+        isOpen={isMobileDrawerOpen}
+        onClose={() => setIsMobileDrawerOpen(false)}
+        onOpenGuide={() => setIsGuideOpen(true)}
+        profile={profile}
+      />
+
+      {/* Interactive Floating User Guide Dialog */}
+      <UserGuideModal
+        isOpen={isGuideOpen}
+        onClose={() => setIsGuideOpen(false)}
+        onSelectAction={(path) => {
+          navigate(path);
+          setIsGuideOpen(false);
+        }}
+      />
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
     </BrowserRouter>
   );
 }

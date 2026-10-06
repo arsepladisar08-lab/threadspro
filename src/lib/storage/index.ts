@@ -20,7 +20,15 @@ const STORAGE_KEYS = {
   THREADS_TOKEN: "autothreads_token",
   CUSTOM_API_KEY: "autothreads_custom_gemini_api_key",
   THREADS_APP_CREDS: "autothreads_threads_app_creds",
+  API_PROFILES: "autothreads_api_profiles",
 };
+
+export interface ApiProfile {
+  token: string;
+  threads_user_id: string;
+  username?: string;
+  updatedAt?: number;
+}
 
 function safeGetLocal(key: string): string | null {
   if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
@@ -108,22 +116,92 @@ export const storage = {
 
   // Metrik Manual
   async getMetrics(): Promise<MetricEntry[]> {
+    let rawList: MetricEntry[] = [];
     try {
-      return (await get(STORAGE_KEYS.METRICS)) || [];
+      rawList = (await get(STORAGE_KEYS.METRICS)) || [];
     } catch {
       const local = safeGetLocal(STORAGE_KEYS.METRICS);
-      return local ? JSON.parse(local) : [];
+      rawList = local ? JSON.parse(local) : [];
     }
+    // Deduplicate by ID to guarantee unique elements & saring repost_facade
+    const seen = new Set<string>();
+    const deduplicated: MetricEntry[] = [];
+    for (const item of rawList) {
+      if (!item) continue;
+      // Abaikan dan buang postingan repost_facade
+      const mType = (item.mediaType || "").toUpperCase();
+      const topic = (item.topicTag || "").toUpperCase();
+      if (mType === "REPOST_FACADE" || mType.includes("REPOST_FACADE") || topic.includes("REPOST_FACADE")) {
+        continue;
+      }
+      if (item.id) {
+        if (!seen.has(item.id)) {
+          seen.add(item.id);
+          deduplicated.push(item);
+        }
+      } else {
+        deduplicated.push(item);
+      }
+    }
+    return deduplicated;
   },
 
   async saveMetric(entry: MetricEntry): Promise<void> {
+    // Jangan simpan repost_facade
+    const mType = (entry.mediaType || "").toUpperCase();
+    if (mType === "REPOST_FACADE" || mType.includes("REPOST_FACADE")) return;
+
     const list = await this.getMetrics();
-    const updated = [entry, ...list];
+    const filtered = list.filter((item) => item.id !== entry.id);
+    const updated = [entry, ...filtered];
     try {
       await set(STORAGE_KEYS.METRICS, updated);
     } catch {
       safeSetLocal(STORAGE_KEYS.METRICS, JSON.stringify(updated));
     }
+  },
+
+  async setMetrics(entries: MetricEntry[]): Promise<void> {
+    const seen = new Set<string>();
+    const deduplicated: MetricEntry[] = [];
+    for (const item of entries) {
+      if (!item) continue;
+      const mType = (item.mediaType || "").toUpperCase();
+      const topic = (item.topicTag || "").toUpperCase();
+      if (mType === "REPOST_FACADE" || mType.includes("REPOST_FACADE") || topic.includes("REPOST_FACADE")) {
+        continue;
+      }
+      if (item.id) {
+        if (!seen.has(item.id)) {
+          seen.add(item.id);
+          deduplicated.push(item);
+        }
+      } else {
+        deduplicated.push(item);
+      }
+    }
+    try {
+      await set(STORAGE_KEYS.METRICS, deduplicated);
+    } catch {
+      safeSetLocal(STORAGE_KEYS.METRICS, JSON.stringify(deduplicated));
+    }
+  },
+
+  async deleteMetric(id: string): Promise<void> {
+    const list = await this.getMetrics();
+    const updated = list.filter((item) => item.id !== id);
+    await this.setMetrics(updated);
+    // Hapus juga dari cache postingan threads jika berasal dari import
+    await this.deleteThreadsPost(id);
+  },
+
+  async clearMetrics(): Promise<void> {
+    try {
+      await del(STORAGE_KEYS.METRICS);
+    } catch {
+      safeRemoveLocal(STORAGE_KEYS.METRICS);
+    }
+    await this.clearThreadsPosts();
   },
 
   // Bobot Kartu E
@@ -189,10 +267,12 @@ export const storage = {
       await del(STORAGE_KEYS.THREADS_ACCOUNT);
       await del(STORAGE_KEYS.THREADS_TOKEN);
       await del(STORAGE_KEYS.THREADS_POSTS);
+      await del(STORAGE_KEYS.API_PROFILES);
     } catch {
       safeRemoveLocal(STORAGE_KEYS.THREADS_ACCOUNT);
       safeRemoveLocal(STORAGE_KEYS.THREADS_TOKEN);
       safeRemoveLocal(STORAGE_KEYS.THREADS_POSTS);
+      safeRemoveLocal(STORAGE_KEYS.API_PROFILES);
     }
   },
 
@@ -212,20 +292,120 @@ export const storage = {
     }
   },
 
-  async getThreadsPosts(): Promise<any[]> {
+  // API Profile (Token & Threads User ID)
+  async getApiProfile(): Promise<ApiProfile | null> {
     try {
-      return (await get(STORAGE_KEYS.THREADS_POSTS)) || [];
+      const data = await get(STORAGE_KEYS.API_PROFILES);
+      if (data && data.token) return data;
     } catch {
-      const local = safeGetLocal(STORAGE_KEYS.THREADS_POSTS);
-      return local ? JSON.parse(local) : [];
+      const local = safeGetLocal(STORAGE_KEYS.API_PROFILES);
+      if (local) {
+        try {
+          const parsed = JSON.parse(local);
+          if (parsed && parsed.token) return parsed;
+        } catch {}
+      }
+    }
+
+    // Fallback: cek THREADS_TOKEN & THREADS_ACCOUNT
+    const token = await this.getThreadsToken();
+    const account = await this.getThreadsAccount();
+    if (token) {
+      return {
+        token,
+        threads_user_id: account?.id || "",
+        username: account?.username || "",
+        updatedAt: account?.connectedAt || Date.now(),
+      };
+    }
+    return null;
+  },
+
+  async saveApiProfile(profile: ApiProfile): Promise<void> {
+    try {
+      await set(STORAGE_KEYS.API_PROFILES, profile);
+    } catch {
+      safeSetLocal(STORAGE_KEYS.API_PROFILES, JSON.stringify(profile));
+    }
+    // Sinkronkan juga ke THREADS_TOKEN
+    if (profile.token) {
+      await this.saveThreadsToken(profile.token);
     }
   },
 
-  async saveThreadsPosts(posts: any[]): Promise<void> {
+  async getThreadsPosts(): Promise<any[]> {
+    let list: any[] = [];
     try {
-      await set(STORAGE_KEYS.THREADS_POSTS, posts);
+      list = (await get(STORAGE_KEYS.THREADS_POSTS)) || [];
     } catch {
-      safeSetLocal(STORAGE_KEYS.THREADS_POSTS, JSON.stringify(posts));
+      const local = safeGetLocal(STORAGE_KEYS.THREADS_POSTS);
+      list = local ? JSON.parse(local) : [];
+    }
+    const seen = new Set<string>();
+    const deduplicated: any[] = [];
+    for (const p of list) {
+      if (!p) continue;
+      // Abaikan dan buang postingan repost_facade
+      const mType = (p.media_type || p.mediaType || "").toUpperCase();
+      const pType = (p.media_product_type || "").toUpperCase();
+      if (mType === "REPOST_FACADE" || pType === "REPOST_FACADE" || mType.includes("REPOST_FACADE")) {
+        continue;
+      }
+      if (p.id) {
+        if (!seen.has(p.id)) {
+          seen.add(p.id);
+          deduplicated.push(p);
+        }
+      } else {
+        deduplicated.push(p);
+      }
+    }
+    return deduplicated;
+  },
+
+  async saveThreadsPosts(posts: any[]): Promise<void> {
+    const seen = new Set<string>();
+    const deduplicated: any[] = [];
+    for (const p of posts) {
+      if (!p) continue;
+      // Abaikan dan jangan simpan postingan repost_facade
+      const mType = (p.media_type || p.mediaType || "").toUpperCase();
+      const pType = (p.media_product_type || "").toUpperCase();
+      if (mType === "REPOST_FACADE" || pType === "REPOST_FACADE" || mType.includes("REPOST_FACADE")) {
+        continue;
+      }
+      if (p.id) {
+        if (!seen.has(p.id)) {
+          seen.add(p.id);
+          deduplicated.push(p);
+        }
+      } else {
+        deduplicated.push(p);
+      }
+    }
+    try {
+      await set(STORAGE_KEYS.THREADS_POSTS, deduplicated);
+    } catch {
+      safeSetLocal(STORAGE_KEYS.THREADS_POSTS, JSON.stringify(deduplicated));
+    }
+  },
+
+  async deleteThreadsPost(id: string): Promise<void> {
+    const cleanId = id.replace(/^th_/, "");
+    const list = await this.getThreadsPosts();
+    const filtered = list.filter((p) => p && p.id !== id && p.id !== cleanId && `th_${p.id}` !== id);
+    try {
+      await set(STORAGE_KEYS.THREADS_POSTS, filtered);
+    } catch {
+      safeSetLocal(STORAGE_KEYS.THREADS_POSTS, JSON.stringify(filtered));
+    }
+  },
+
+  async clearThreadsPosts(): Promise<void> {
+    try {
+      await del(STORAGE_KEYS.THREADS_POSTS);
+    } catch {
+      safeRemoveLocal(STORAGE_KEYS.THREADS_POSTS);
     }
   },
 

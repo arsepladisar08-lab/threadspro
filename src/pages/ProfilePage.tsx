@@ -54,10 +54,8 @@ export const ProfilePage: React.FC = () => {
   }, []);
 
   const handleDisconnectThreads = async () => {
-    if (confirm("Putuskan koneksi akun Threads ini?")) {
-      await threadsClient.disconnectAccount();
-      setThreadsAccount(null);
-    }
+    await threadsClient.disconnectAccount();
+    setThreadsAccount(null);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -99,7 +97,7 @@ export const ProfilePage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 pb-24">
+    <div className="max-w-4xl mx-auto px-3 sm:px-5 md:px-6 py-6 sm:py-8 pb-24">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>

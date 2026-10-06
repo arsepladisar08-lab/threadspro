@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import aiHandler from "./api/ai";
 import bankExportHandler from "./api/bank/export";
 import cronDailyHandler from "./api/cron/daily";
+import threadsHandler from "./api/threads";
 
 dotenv.config();
 
@@ -19,6 +20,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Server API Routes
 app.all("/api/ai", (req, res) => aiHandler(req, res));
+app.all("/api/threads", (req, res) => threadsHandler(req, res));
 app.all("/api/bank/export", (req, res) => bankExportHandler(req, res));
 app.all("/api/cron/daily", (req, res) => cronDailyHandler(req, res));
 

@@ -168,16 +168,14 @@ export const ThreadsApiLabPage: React.FC = () => {
   };
 
   const handleDisconnectThreads = async () => {
-    if (confirm("Apakah Anda yakin ingin memutuskan akun Threads ini dan menghapus token yang tersimpan?")) {
-      await threadsClient.disconnectAccount();
-      setAccount(null);
-      setPosts([]);
-      setThreadsTokenInput("");
-      setRawResponse({
-        status: "disconnected",
-        message: "Akun Threads telah diputuskan dari aplikasi.",
-      });
-    }
+    await threadsClient.disconnectAccount();
+    setAccount(null);
+    setPosts([]);
+    setThreadsTokenInput("");
+    setRawResponse({
+      status: "disconnected",
+      message: "Akun Threads telah diputuskan dari aplikasi.",
+    });
   };
 
   const handleSyncPosts = async () => {
@@ -185,14 +183,14 @@ export const ThreadsApiLabPage: React.FC = () => {
     setIsSyncing(true);
     setSyncStatus(null);
     try {
-      const refreshed = await threadsClient.syncRealPosts();
+      const refreshed = await threadsClient.fetchThreadsOriginal();
       setPosts(refreshed);
-      setSyncStatus(`Berhasil menyinkronkan ${refreshed.length} postingan dari akun Threads.`);
+      setSyncStatus(`Berhasil menyinkronkan ${refreshed.length} kumpulan utas asli dari akun Threads.`);
     } catch (err: any) {
       setSyncStatus(`Gagal sinkronisasi: ${err.message}`);
     } finally {
       setIsSyncing(false);
-      setTimeout(() => setSyncStatus(null), 4000);
+      setTimeout(() => setSyncStatus(null), 5000);
     }
   };
 
@@ -228,12 +226,13 @@ export const ThreadsApiLabPage: React.FC = () => {
           data,
         });
       } else if (ep === "user_threads") {
+        const fields = "id,media_product_type,media_type,media_url,permalink,owner,username,text,timestamp,shortcode,thumbnail_url,children,is_quote_post";
         const res = await fetch(
-          `${baseUrl}/me/threads?fields=id,media_product_type,text,timestamp,permalink,media_type&limit=10&access_token=${encodeURIComponent(token)}`
+          `${baseUrl}/me/threads?fields=${fields}&limit=10&access_token=${encodeURIComponent(token)}`
         );
         const data = await res.json();
         setRawResponse({
-          endpoint: "GET /me/threads?fields=id,media_product_type,text,timestamp,permalink,media_type&limit=10",
+          endpoint: `GET /me/threads?fields=${fields}&limit=10`,
           status: res.status,
           headers: {
             "x-app-usage": res.headers.get("x-app-usage") || "active",
@@ -278,7 +277,7 @@ export const ThreadsApiLabPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 pb-24 space-y-6">
+    <div className="max-w-5xl mx-auto px-3 sm:px-5 md:px-6 py-6 sm:py-8 pb-24 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

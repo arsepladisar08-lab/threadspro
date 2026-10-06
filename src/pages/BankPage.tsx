@@ -95,7 +95,7 @@ export const BankPage: React.FC = () => {
   const pendingList = customCards.filter((c) => c.status === "pending");
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 pb-24 space-y-6">
+    <div className="max-w-5xl mx-auto px-3 sm:px-5 md:px-6 py-6 sm:py-8 pb-24 space-y-6">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -200,9 +200,9 @@ export const BankPage: React.FC = () => {
 
           {/* Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredCards.map((card) => (
+            {filteredCards.map((card, idx) => (
               <div
-                key={card.id}
+                key={`${card.id}_${idx}`}
                 className="p-5 rounded-2xl bg-neutral-900/80 border border-neutral-800 space-y-3 shadow-xs hover:border-neutral-700 transition"
               >
                 <div className="flex items-center justify-between">
@@ -236,9 +236,9 @@ export const BankPage: React.FC = () => {
                     Pola Hook & Slot ({card.hooks.length}):
                   </span>
                   <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
-                    {card.hooks.map((h) => (
+                    {card.hooks.map((h, hIdx) => (
                       <div
-                        key={h.id}
+                        key={`${h.id}_${hIdx}`}
                         className="p-2.5 rounded-xl bg-neutral-950 border border-neutral-800/80 text-[11px] space-y-1"
                       >
                         <div className="flex items-center justify-between text-neutral-400">
@@ -267,9 +267,9 @@ export const BankPage: React.FC = () => {
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {ALGORITHM_RULES.map((rule) => (
+            {ALGORITHM_RULES.map((rule, idx) => (
               <div
-                key={rule.id}
+                key={`${rule.id}_${idx}`}
                 className="p-4 rounded-2xl bg-neutral-900/80 border border-neutral-800 space-y-1.5 text-xs"
               >
                 <div className="flex items-center justify-between">
@@ -306,9 +306,9 @@ export const BankPage: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              {pendingList.map((card) => (
+              {pendingList.map((card, idx) => (
                 <div
-                  key={card.id}
+                  key={`${card.id}_${idx}`}
                   className="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-3 text-xs"
                 >
                   <div className="flex items-center justify-between">

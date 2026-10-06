@@ -213,6 +213,10 @@ export interface MetricEntry {
   engagementRate: number | null;
   cardId?: string;
   notes?: string;
+  // Metadata Utas Asli
+  postText?: string;
+  permalink?: string;
+  mediaType?: string;
 }
 
 export interface CardUserWeight {

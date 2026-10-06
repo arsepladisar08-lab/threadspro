@@ -47,7 +47,7 @@ export const ReplyPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 pb-24 space-y-6">
+    <div className="max-w-4xl mx-auto px-3 sm:px-5 md:px-6 py-6 sm:py-8 pb-24 space-y-6">
       {/* Header */}
       <div>
         <div className="flex items-center gap-2">
@@ -146,7 +146,7 @@ export const ReplyPage: React.FC = () => {
 
               {replies.map((rep, idx) => (
                 <div
-                  key={rep.id || idx}
+                  key={rep.id ? `${rep.id}_${idx}` : `rep_${idx}`}
                   className="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-3 shadow-xs"
                 >
                   <div className="flex items-center justify-between">

@@ -195,7 +195,7 @@ export const CalendarPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 pb-24 space-y-6">
+    <div className="max-w-5xl mx-auto px-3 sm:px-5 md:px-6 py-6 sm:py-8 pb-24 space-y-6">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -309,11 +309,11 @@ export const CalendarPage: React.FC = () => {
 
       {/* Days Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {calendarDays.map((day) => {
+        {calendarDays.map((day, idx) => {
           const isJumatLapak = day.dayName === "Jumat" && modeFormula === "hub";
           return (
             <div
-              key={day.id || day.dayNumber}
+              key={day.id ? `${day.id}_${idx}` : `day_${day.dayNumber}_${idx}`}
               className={`p-4 rounded-2xl border transition-all space-y-3 ${
                 isJumatLapak
                   ? "bg-purple-950/20 border-purple-500/30"
