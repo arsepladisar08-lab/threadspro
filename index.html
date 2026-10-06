@@ -9,6 +9,44 @@
     <meta property="og:description" content="Generator Utas Threads Berpola Referensi & Ramah Algoritma untuk Kreator dan UMKM Indonesia" />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      (function() {
+        try {
+          var _origFetch = window.fetch ? window.fetch.bind(window) : undefined;
+          var _currentFetch = _origFetch;
+          Object.defineProperty(window, 'fetch', {
+            get: function() {
+              return _currentFetch;
+            },
+            set: function(fn) {
+              _currentFetch = typeof fn === 'function' ? fn : _origFetch;
+            },
+            configurable: true,
+            enumerable: true
+          });
+        } catch (e) {
+          try {
+            var rawFetch = window.fetch;
+            Object.defineProperty(window, 'fetch', {
+              value: rawFetch,
+              writable: true,
+              configurable: true,
+              enumerable: true
+            });
+          } catch (_) {}
+        }
+
+        window.addEventListener('error', function(e) {
+          if (
+            (e.filename && (e.filename.indexOf('chrome-extension://') !== -1 || e.filename.indexOf('moz-extension://') !== -1)) ||
+            (e.message && e.message.indexOf('Cannot set property fetch') !== -1)
+          ) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+          }
+        }, true);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
