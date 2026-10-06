@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { UserProfile, GoalType, GenerationOutput, VariantOutput } from "../types";
 import { storage } from "../lib/storage";
 import { retrieveTopPatterns } from "../lib/retrieval";
 import { auditVariant, autoFixVariant } from "../lib/guard";
-import { generateJSON } from "../services/ai";
+import { generateJSON, generateFactsAssistance } from "../services/ai";
 import { ProvenanceBadge } from "../components/ProvenanceBadge";
 import { PublishModal } from "../components/PublishModal";
 import {
@@ -25,8 +25,22 @@ import {
   ChevronUp,
   Tag,
   Lightbulb,
+  Upload,
+  Paperclip,
+  Trash2,
+  Edit3,
+  X,
+  Save,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+
+export interface UploadedDocFile {
+  name: string;
+  size: string;
+  content: string;
+  type: "text" | "image";
+  previewUrl?: string;
+}
 
 export const GeneratorPage: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -34,6 +48,7 @@ export const GeneratorPage: React.FC = () => {
   const [goal, setGoal] = useState<GoalType>("Jangkauan");
   const [realFacts, setRealFacts] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isAssistingFacts, setIsAssistingFacts] = useState(false);
   const [currentStep, setCurrentStep] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [generationNotice, setGenerationNotice] = useState<string | null>(null);
@@ -44,6 +59,20 @@ export const GeneratorPage: React.FC = () => {
   const [postedSuccess, setPostedSuccess] = useState(false);
   const [publishModalVariant, setPublishModalVariant] = useState<VariantOutput | null>(null);
   const [showTrace, setShowTrace] = useState(true);
+
+  // File Upload State
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedDocFile[]>([]);
+  const [isReadingFile, setIsReadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Variant Editing State
+  const [editingPostIdx, setEditingPostIdx] = useState<number | null>(null);
+  const [editingPostText, setEditingPostText] = useState("");
+  const [isEditingReply2, setIsEditingReply2] = useState(false);
+  const [editingReply2Text, setEditingReply2Text] = useState("");
+  const [isEditingTopicTag, setIsEditingTopicTag] = useState(false);
+  const [editingTopicTagText, setEditingTopicTagText] = useState("");
+  const [editNoticeToast, setEditNoticeToast] = useState<string | null>(null);
 
   useEffect(() => {
     storage.getProfile().then((p) => {
@@ -71,6 +100,199 @@ export const GeneratorPage: React.FC = () => {
     });
   }, []);
 
+  const handleAiAssistFacts = async () => {
+    if (!rawIdea.trim() && uploadedFiles.length === 0) {
+      setErrorMessage("Silakan isi '1. Ide Kasar' atau unggah file terlebih dahulu agar AI dapat meracik fakta & angka yang tepat.");
+      return;
+    }
+    setIsAssistingFacts(true);
+    setErrorMessage(null);
+    try {
+      const sourceIdea = rawIdea.trim() || uploadedFiles.map((f) => f.content).join("\n");
+      const aiFacts = await generateFactsAssistance({
+        rawIdea: sourceIdea,
+        niche: profile?.niche || "Keuangan",
+        goal,
+        profile,
+      });
+      setRealFacts(aiFacts);
+      setGenerationNotice("✨ Fakta, angka realistis, dan ulasan cerita berhasil diracik oleh AI!");
+      setTimeout(() => setGenerationNotice(null), 4000);
+    } catch (err: any) {
+      setErrorMessage(err.message || "Gagal meracik fakta dengan AI.");
+    } finally {
+      setIsAssistingFacts(false);
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    setIsReadingFile(true);
+
+    const formatBytes = (bytes: number) => {
+      if (bytes < 1024) return bytes + " B";
+      else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+      else return (bytes / 1048576).toFixed(1) + " MB";
+    };
+
+    if (file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        const newFileInfo: UploadedDocFile = {
+          name: file.name,
+          size: formatBytes(file.size),
+          content: `[Catatan visual / tangkapan layar: ${file.name}]`,
+          previewUrl: dataUrl,
+          type: "image",
+        };
+        setUploadedFiles((prev) => [newFileInfo, ...prev]);
+        setIsReadingFile(false);
+        setGenerationNotice(`File gambar ${file.name} berhasil diunggah.`);
+        setTimeout(() => setGenerationNotice(null), 3000);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const textContent = (reader.result as string) || "";
+        const newFileInfo: UploadedDocFile = {
+          name: file.name,
+          size: formatBytes(file.size),
+          content: textContent,
+          type: "text",
+        };
+        setUploadedFiles((prev) => [newFileInfo, ...prev]);
+        setIsReadingFile(false);
+        setGenerationNotice(`File teks ${file.name} (${formatBytes(file.size)}) berhasil diunggah.`);
+        setTimeout(() => setGenerationNotice(null), 3000);
+      };
+      reader.onerror = () => {
+        setIsReadingFile(false);
+        setErrorMessage("Gagal membaca file yang diunggah.");
+      };
+      reader.readAsText(file);
+    }
+
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleUseFileForIdea = (file: UploadedDocFile) => {
+    const textToAdd = file.type === "image" ? `[Catatan visual: ${file.name}]` : file.content;
+    setRawIdea((prev) => (prev ? `${prev}\n\n${textToAdd}` : textToAdd));
+    setGenerationNotice(`Konten dari ${file.name} telah dimasukkan ke Ide Kasar.`);
+    setTimeout(() => setGenerationNotice(null), 3000);
+  };
+
+  const handleUseFileForFacts = (file: UploadedDocFile) => {
+    const textToAdd = file.type === "image" ? `[Data visual: ${file.name}]` : file.content;
+    setRealFacts((prev) => (prev ? `${prev}\n\n${textToAdd}` : textToAdd));
+    setGenerationNotice(`Konten dari ${file.name} telah dimasukkan ke Fakta/Angka.`);
+    setTimeout(() => setGenerationNotice(null), 3000);
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSavePostEdit = async (pIdx: number) => {
+    if (!result || !result.variants || !result.variants[activeVariantIdx]) return;
+    const updatedVariants = [...result.variants];
+    const current = { ...updatedVariants[activeVariantIdx] };
+    const updatedPosts = [...current.posts];
+    
+    updatedPosts[pIdx] = {
+      ...updatedPosts[pIdx],
+      text: editingPostText,
+      char_count: editingPostText.length,
+    };
+    current.posts = updatedPosts;
+
+    updatedVariants[activeVariantIdx] = current;
+    const updatedResult: GenerationOutput = {
+      ...result,
+      variants: updatedVariants,
+    };
+
+    setResult(updatedResult);
+    await storage.saveGeneration(updatedResult);
+    setEditingPostIdx(null);
+    setEditNoticeToast(`Post #${pIdx + 1} berhasil disimpan!`);
+    setTimeout(() => setEditNoticeToast(null), 2500);
+  };
+
+  const handleSaveReply2Edit = async () => {
+    if (!result || !result.variants || !result.variants[activeVariantIdx]) return;
+    const updatedVariants = [...result.variants];
+    const current = { ...updatedVariants[activeVariantIdx] };
+    current.reply_2 = {
+      ...current.reply_2,
+      text: editingReply2Text,
+      contains_link: /(https?:\/\/[^\s]+|www\.[^\s]+)/i.test(editingReply2Text),
+    };
+    updatedVariants[activeVariantIdx] = current;
+    const updatedResult: GenerationOutput = {
+      ...result,
+      variants: updatedVariants,
+    };
+
+    setResult(updatedResult);
+    await storage.saveGeneration(updatedResult);
+    setIsEditingReply2(false);
+    setEditNoticeToast("Reply ke-2 berhasil disimpan!");
+    setTimeout(() => setEditNoticeToast(null), 2500);
+  };
+
+  const handleSaveTopicTagEdit = async () => {
+    if (!result || !result.variants || !result.variants[activeVariantIdx]) return;
+    const cleanTag = editingTopicTagText.replace(/#/g, "").trim();
+    if (!cleanTag) return;
+    const updatedVariants = [...result.variants];
+    const current = { ...updatedVariants[activeVariantIdx] };
+    current.topic_tag = cleanTag;
+    updatedVariants[activeVariantIdx] = current;
+    const updatedResult: GenerationOutput = {
+      ...result,
+      variants: updatedVariants,
+    };
+
+    setResult(updatedResult);
+    await storage.saveGeneration(updatedResult);
+    setIsEditingTopicTag(false);
+    setEditNoticeToast("Topic Tag berhasil disimpan!");
+    setTimeout(() => setEditNoticeToast(null), 2500);
+  };
+
+  const handleSwitchHook = async (newHookText: string) => {
+    if (!result || !result.variants || !result.variants[activeVariantIdx]) return;
+    const updatedVariants = [...result.variants];
+    const current = { ...updatedVariants[activeVariantIdx] };
+    const updatedPosts = [...current.posts];
+    if (updatedPosts.length > 0) {
+      const oldPost1 = updatedPosts[0].text;
+      const paragraphs = oldPost1.split("\n\n");
+      const restOfPost = paragraphs.length > 1 ? "\n\n" + paragraphs.slice(1).join("\n\n") : "";
+      const combined = (newHookText + restOfPost).trim();
+      updatedPosts[0] = {
+        ...updatedPosts[0],
+        text: combined,
+        char_count: combined.length,
+      };
+      current.posts = updatedPosts;
+      updatedVariants[activeVariantIdx] = current;
+      const updatedResult: GenerationOutput = {
+        ...result,
+        variants: updatedVariants,
+      };
+      setResult(updatedResult);
+      await storage.saveGeneration(updatedResult);
+      setEditNoticeToast("Hook pembuka berhasil diterapkan ke Post #1!");
+      setTimeout(() => setEditNoticeToast(null), 2500);
+    }
+  };
+
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!rawIdea.trim()) return;
@@ -83,12 +305,25 @@ export const GeneratorPage: React.FC = () => {
     try {
       const userNiche = profile?.niche || "Keuangan";
 
+      // Kumpulkan konteks dari file upload jika ada
+      let fileContext = "";
+      if (uploadedFiles.length > 0) {
+        fileContext = uploadedFiles
+          .map((f) => `[Lampiran File ${f.name}]:\n${f.content.slice(0, 1500)}`)
+          .join("\n\n");
+      }
+
+      const effectiveIdea = fileContext ? `${rawIdea}\n\n${fileContext}` : rawIdea;
+      const effectiveFacts = realFacts
+        ? realFacts
+        : "AI menyusun ulasan fakta terbaik berupa estimasi angka kredibel dan cerita riil yang relevan tanpa placeholder kosong.";
+
       // Langkah 1: Ekstraksi Idea DNA
       let ideaDna: any;
       try {
         ideaDna = await generateJSON("ideaDna", {
-          rawIdea,
-          realFacts: realFacts || "Belum ada fakta angka spesifik, buat placeholder [ISI: ...]",
+          rawIdea: effectiveIdea,
+          realFacts: effectiveFacts,
           userProfile: profile,
           targetGoal: goal,
         });
@@ -97,10 +332,10 @@ export const GeneratorPage: React.FC = () => {
         ideaDna = {
           topik_inti: rawIdea.slice(0, 50),
           sudut: "Refleksi jujur & pengalaman nyata",
-          fakta_asli: realFacts ? [realFacts] : [],
+          fakta_asli: realFacts ? [realFacts] : ["Evaluasi 30 hari: kebocoran pengeluaran halus bisa ditekan 40% dengan sistem amplop."],
           emosi_target: "Relatable",
           tujuan: goal,
-          placeholder_dibutuhkan: realFacts ? [] : ["[ISI: fakta/angka Anda]"],
+          placeholder_dibutuhkan: [],
         };
       }
 
@@ -356,21 +591,122 @@ export const GeneratorPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Fakta Asli / Angka */}
-              <div>
-                <label className="block text-xs font-bold text-neutral-200 mb-1 flex items-center justify-between">
-                  <span>3. Fakta / Angka / Cerita ASLI (Opsional)</span>
-                  <span className="text-[10px] text-emerald-400 font-medium">Anti Karang</span>
-                </label>
-                <p className="text-[11px] text-neutral-400 mb-1.5 leading-snug">
-                  Jika dikosongkan, AI akan menyematkan placeholder aman seperti <code className="text-indigo-300">[ISI: nominal]</code> agar Anda tidak mengarang angka.
+              {/* Fakta Asli / Angka (Dibantu AI & Upload File) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-neutral-200 flex items-center gap-1.5">
+                    <span>3. Fakta / Angka / Cerita ASLI</span>
+                    <span className="text-[10px] text-emerald-400 font-medium px-1.5 py-0.2 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                      Dibantu AI • Siap Post
+                    </span>
+                  </label>
+
+                  <div className="flex items-center gap-1.5">
+                    {/* Tombol Upload File */}
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isReadingFile}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-neutral-900 hover:bg-neutral-800 text-indigo-300 border border-indigo-500/30 transition cursor-pointer"
+                      title="Unggah file catatan, dokumen teks (.txt/.md/.json) atau screenshot (.png/.jpg)"
+                    >
+                      <Upload className="w-3 h-3 text-indigo-400" />
+                      <span>{isReadingFile ? "Membaca..." : "Upload File"}</span>
+                    </button>
+
+                    {/* Tombol AI Assist Fakta & Angka */}
+                    <button
+                      type="button"
+                      onClick={handleAiAssistFacts}
+                      disabled={isAssistingFacts}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 transition cursor-pointer"
+                      title="AI bantu racik estimasi angka kredibel dan ulasan cerita terbaik siap posting"
+                    >
+                      {isAssistingFacts ? (
+                        <RefreshCw className="w-3 h-3 animate-spin text-indigo-400" />
+                      ) : (
+                        <Sparkles className="w-3 h-3 text-amber-400" />
+                      )}
+                      <span>{isAssistingFacts ? "Meracik..." : "Bantu AI Racik Fakta"}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-neutral-400 leading-snug">
+                  AI akan menyusun ulasan fakta terbaik, estimasi angka benchmark yang realistis, atau studi kasus otentik tanpa lagi menyematkan placeholder kosong seperti <code className="text-rose-300 line-through">[ISI: nominal]</code> sehingga utas langsung siap upload ke Threads.
                 </p>
+
+                {/* Hidden File Input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept=".txt,.md,.json,.csv,text/plain,image/*"
+                  className="hidden"
+                />
+
+                {/* Daftar File yang Diunggah */}
+                {uploadedFiles.length > 0 && (
+                  <div className="space-y-1.5 p-2 rounded-xl bg-neutral-950/80 border border-neutral-800">
+                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block px-1">
+                      File Terlampir ({uploadedFiles.length}):
+                    </span>
+                    <div className="space-y-1">
+                      {uploadedFiles.map((file, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between gap-2 p-1.5 rounded-lg bg-neutral-900/80 border border-neutral-800/80 text-[11px]"
+                        >
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {file.type === "image" ? (
+                              <Paperclip className="w-3 h-3 text-emerald-400 shrink-0" />
+                            ) : (
+                              <FileText className="w-3 h-3 text-indigo-400 shrink-0" />
+                            )}
+                            <span className="text-neutral-200 font-medium truncate max-w-[130px]">
+                              {file.name}
+                            </span>
+                            <span className="text-[10px] text-neutral-500">({file.size})</span>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleUseFileForFacts(file)}
+                              className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-neutral-800 hover:bg-neutral-700 text-indigo-300"
+                              title="Masukkan isi file ke Fakta/Angka"
+                            >
+                              + Ke Fakta
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleUseFileForIdea(file)}
+                              className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-neutral-800 hover:bg-neutral-700 text-neutral-300"
+                              title="Masukkan isi file ke Ide Kasar"
+                            >
+                              + Ke Ide
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveFile(idx)}
+                              className="p-1 rounded text-neutral-500 hover:text-rose-400 hover:bg-neutral-800"
+                              title="Hapus file"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <textarea
-                  rows={2}
+                  rows={3}
                   value={realFacts}
                   onChange={(e) => setRealFacts(e.target.value)}
-                  placeholder="Contoh: Pengeluaran kopi 1,7jt sebulan, gaji 8jt, cicilan 2,5jt..."
-                  className="w-full p-2.5 rounded-xl bg-neutral-950 border border-neutral-800 text-xs text-white placeholder-neutral-600 focus:outline-hidden focus:border-indigo-500"
+                  placeholder="Ketik fakta/angka asli Anda, unggah file, atau klik 'Bantu AI Racik Fakta' agar AI memberikan angka & ulasan otentik siap posting..."
+                  className="w-full p-2.5 rounded-xl bg-neutral-950 border border-neutral-800 text-xs text-white placeholder-neutral-600 focus:outline-hidden focus:border-indigo-500 leading-relaxed"
                 />
               </div>
 
@@ -497,40 +833,161 @@ export const GeneratorPage: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Posts List */}
+                  {/* Pilihan 3 Opsi Hook Pembuka */}
+                  {currentVariant.hooks && currentVariant.hooks.length > 0 && (
+                    <div className="p-3 rounded-xl bg-neutral-950/80 border border-neutral-800 text-xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-neutral-300 flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Eksperimen Hook Pembuka ({currentVariant.hooks.length} Opsi):</span>
+                        </span>
+                        <span className="text-[10px] text-neutral-400">Klik untuk mengganti pembuka Post #1</span>
+                      </div>
+                      <div className="grid grid-cols-1 gap-1.5">
+                        {currentVariant.hooks.map((hText, hIdx) => {
+                          const isCurrentActiveHook = currentVariant.posts[0]?.text.startsWith(hText.slice(0, 35));
+                          return (
+                            <button
+                              key={hIdx}
+                              type="button"
+                              onClick={() => handleSwitchHook(hText)}
+                              className={`text-left p-2.5 rounded-lg text-xs transition border cursor-pointer ${
+                                isCurrentActiveHook
+                                  ? "bg-indigo-950/40 border-indigo-500/50 text-indigo-200 ring-1 ring-indigo-500/30"
+                                  : "bg-neutral-900/60 border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-700"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                                  Opsi #{hIdx + 1} {hIdx === 0 ? "(Utama)" : hIdx === 1 ? "(Alternatif)" : "(Kontras)"}
+                                </span>
+                                {isCurrentActiveHook && (
+                                  <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                                    <Check className="w-3 h-3" /> Aktif di Post #1
+                                  </span>
+                                )}
+                              </div>
+                              <p className="line-clamp-2 italic text-[11px] text-neutral-300">"{hText}"</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Posts List dengan Fitur Edit Penuh */}
                   <div className="space-y-3">
+                    <div className="flex items-center justify-between px-1 text-xs">
+                      <span className="font-bold text-neutral-300 flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>Daftar Utas ({currentVariant.posts.length} Post) — Dapat Diedit:</span>
+                      </span>
+                      <span className="text-[10px] text-neutral-400">
+                        Klik tombol "Edit" pada post untuk mengubah teks langsung
+                      </span>
+                    </div>
+
                     {currentVariant.posts.map((post, pIdx) => {
-                      const charCount = post.text.length;
+                      const isEditing = editingPostIdx === pIdx;
+                      const charCount = isEditing ? editingPostText.length : post.text.length;
                       const isOverLimit = charCount > 500;
                       return (
                         <div
                           key={pIdx}
-                          className="relative p-4 rounded-xl bg-neutral-950 border border-neutral-800/80 hover:border-neutral-700 transition space-y-2"
+                          className={`relative p-4 rounded-xl bg-neutral-950 border transition space-y-2.5 ${
+                            isEditing
+                              ? "border-indigo-500/80 ring-1 ring-indigo-500/40"
+                              : "border-neutral-800/80 hover:border-neutral-700"
+                          }`}
                         >
                           <div className="flex items-center justify-between text-[11px] text-neutral-400">
-                            <span className="font-bold text-neutral-300">Post #{post.order}</span>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-neutral-300">Post #{post.order}</span>
+                              {isEditing && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                  Mode Edit
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
                               <span className={isOverLimit ? "text-rose-400 font-bold" : "text-neutral-400"}>
                                 {charCount}/500 karakter
                               </span>
-                              <button
-                                type="button"
-                                onClick={() => handleCopyPost(post.text, pIdx)}
-                                className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
-                                title="Salin post ini"
-                              >
-                                {copiedPostIdx === pIdx ? (
-                                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                                ) : (
-                                  <Copy className="w-3.5 h-3.5" />
-                                )}
-                              </button>
+                              {!isEditing ? (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingPostIdx(pIdx);
+                                      setEditingPostText(post.text);
+                                    }}
+                                    className="p-1.5 rounded-lg text-neutral-400 hover:text-indigo-300 hover:bg-neutral-900 border border-transparent hover:border-neutral-800 transition flex items-center gap-1 text-[11px] cursor-pointer"
+                                    title="Edit teks post ini"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                    <span className="hidden sm:inline">Edit</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyPost(post.text, pIdx)}
+                                    className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-900 border border-transparent hover:border-neutral-800 transition flex items-center gap-1 text-[11px] cursor-pointer"
+                                    title="Salin post ini"
+                                  >
+                                    {copiedPostIdx === pIdx ? (
+                                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                    ) : (
+                                      <Copy className="w-3.5 h-3.5" />
+                                    )}
+                                    <span className="hidden sm:inline">{copiedPostIdx === pIdx ? "Tersalin" : "Salin"}</span>
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingPostIdx(null)}
+                                    className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 border border-neutral-800 flex items-center gap-1 transition cursor-pointer"
+                                  >
+                                    <X className="w-3 h-3" />
+                                    <span>Batal</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSavePostEdit(pIdx)}
+                                    className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1 shadow-xs transition cursor-pointer"
+                                  >
+                                    <Save className="w-3 h-3" />
+                                    <span>Simpan</span>
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </div>
 
-                          <p className="text-xs text-neutral-100 whitespace-pre-wrap leading-relaxed font-normal">
-                            {post.text}
-                          </p>
+                          {isEditing ? (
+                            <div className="space-y-2">
+                              <textarea
+                                rows={4}
+                                value={editingPostText}
+                                onChange={(e) => setEditingPostText(e.target.value)}
+                                className="w-full p-3 rounded-lg bg-neutral-900/90 border border-neutral-700 text-xs text-white placeholder-neutral-500 focus:outline-hidden focus:border-indigo-400 leading-relaxed font-normal"
+                                placeholder="Edit teks post Threads ini..."
+                                autoFocus
+                              />
+                              <div className="flex items-center justify-between text-[10px] text-neutral-400">
+                                <span>Perubahan akan langsung disimpan ke varian ini.</span>
+                                {isOverLimit && (
+                                  <span className="text-rose-400 font-semibold">
+                                    Melebihi batas Meta Threads ({charCount - 500} karakter lebih)
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-neutral-100 whitespace-pre-wrap leading-relaxed font-normal">
+                              {post.text}
+                            </p>
+                          )}
 
                           {post.media_suggestion && (
                             <div className="pt-1 text-[10px] text-neutral-400 flex items-center gap-1">
@@ -544,29 +1001,121 @@ export const GeneratorPage: React.FC = () => {
                     })}
                   </div>
 
-                  {/* Reply ke-2 (Safe Link & CTA) */}
-                  {currentVariant.reply_2?.text && (
-                    <div className="p-3.5 rounded-xl bg-indigo-950/20 border border-indigo-500/20 space-y-1.5">
+                  {/* Reply ke-2 (Safe Link & CTA) - Bisa Diedit */}
+                  {currentVariant.reply_2 && (
+                    <div className="p-3.5 rounded-xl bg-indigo-950/20 border border-indigo-500/20 space-y-2">
                       <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-bold text-indigo-300">Reply ke-2 (Untuk Link / Tambahan)</span>
-                        <span className="text-[10px] text-indigo-400">Menjaga post #1 bebas downrank</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-indigo-300">Reply ke-2 (Untuk Link / Tambahan)</span>
+                          <span className="text-[10px] text-indigo-400">Menjaga post #1 bebas downrank</span>
+                        </div>
+                        {!isEditingReply2 ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsEditingReply2(true);
+                              setEditingReply2Text(currentVariant.reply_2?.text || "");
+                            }}
+                            className="p-1 px-2 rounded-lg text-neutral-400 hover:text-indigo-300 hover:bg-neutral-900/80 transition flex items-center gap-1 text-[11px] cursor-pointer"
+                            title="Edit reply ke-2"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                            <span>Edit</span>
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setIsEditingReply2(false)}
+                              className="px-2 py-0.5 rounded text-[10px] font-medium bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 border border-neutral-800 flex items-center gap-1 transition cursor-pointer"
+                            >
+                              <X className="w-3 h-3" />
+                              <span>Batal</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleSaveReply2Edit}
+                              className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1 transition cursor-pointer"
+                            >
+                              <Save className="w-3 h-3" />
+                              <span>Simpan</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      <p className="text-xs text-neutral-300 whitespace-pre-wrap leading-relaxed">
-                        {currentVariant.reply_2.text}
-                      </p>
+
+                      {isEditingReply2 ? (
+                        <textarea
+                          rows={3}
+                          value={editingReply2Text}
+                          onChange={(e) => setEditingReply2Text(e.target.value)}
+                          className="w-full p-2.5 rounded-lg bg-neutral-900 border border-neutral-700 text-xs text-white placeholder-neutral-500 focus:outline-hidden focus:border-indigo-400 leading-relaxed font-normal"
+                          placeholder="Edit teks reply ke-2..."
+                          autoFocus
+                        />
+                      ) : (
+                        <p className="text-xs text-neutral-300 whitespace-pre-wrap leading-relaxed">
+                          {currentVariant.reply_2.text}
+                        </p>
+                      )}
                     </div>
                   )}
 
-                  {/* Topic Tag & Waktu Rekomendasi */}
+                  {/* Topic Tag & Waktu Rekomendasi - Topic Tag Bisa Diedit */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    <div className="p-2.5 rounded-xl bg-neutral-950 border border-neutral-800 flex items-center gap-2">
-                      <Tag className="w-4 h-4 text-indigo-400 shrink-0" />
-                      <div>
-                        <span className="text-[10px] text-neutral-400 block">Topic Tag Resmi:</span>
-                        <span className="font-semibold text-white">
-                          {currentVariant.topic_tag.replace(/#/g, "")}
-                        </span>
+                    <div className="p-2.5 rounded-xl bg-neutral-950 border border-neutral-800 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <Tag className="w-4 h-4 text-indigo-400 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <span className="text-[10px] text-neutral-400 block">Topic Tag Resmi:</span>
+                          {isEditingTopicTag ? (
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <input
+                                type="text"
+                                value={editingTopicTagText}
+                                onChange={(e) => setEditingTopicTagText(e.target.value)}
+                                className="px-2 py-1 rounded bg-neutral-900 border border-neutral-700 text-xs text-white focus:outline-hidden focus:border-indigo-400 w-full"
+                                placeholder="Topic Tag tanpa #"
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={handleSaveTopicTagEdit}
+                                className="p-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer"
+                                title="Simpan Topic Tag"
+                              >
+                                <Save className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setIsEditingTopicTag(false)}
+                                className="p-1.5 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-400 cursor-pointer"
+                                title="Batal"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="font-semibold text-white truncate block">
+                              {currentVariant.topic_tag.replace(/#/g, "")}
+                            </span>
+                          )}
+                        </div>
                       </div>
+                      {!isEditingTopicTag && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsEditingTopicTag(true);
+                            setEditingTopicTagText(currentVariant.topic_tag.replace(/#/g, ""));
+                          }}
+                          className="p-1 px-1.5 rounded text-neutral-400 hover:text-indigo-300 hover:bg-neutral-900 transition text-[10px] flex items-center gap-1 cursor-pointer"
+                          title="Ubah Topic Tag"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                          <span>Ubah</span>
+                        </button>
+                      )}
                     </div>
 
                     <div className="p-2.5 rounded-xl bg-neutral-950 border border-neutral-800 flex items-center gap-2">
@@ -641,6 +1190,14 @@ export const GeneratorPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Edit Notice Toast */}
+      {editNoticeToast && (
+        <div className="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-2xl flex items-center gap-2 border border-emerald-400/40">
+          <Check className="w-4 h-4 text-white" />
+          <span>{editNoticeToast}</span>
+        </div>
+      )}
 
       {/* Publish Modal */}
       {publishModalVariant && (

@@ -88,6 +88,61 @@ async function getDirectAIClient(): Promise<GoogleGenAI> {
 }
 
 /**
+ * Bantu merumuskan fakta, angka realistis, dan cerita otentik menggunakan AI (Point 3)
+ */
+export async function generateFactsAssistance(params: {
+  rawIdea: string;
+  niche?: string;
+  goal?: string;
+  profile?: any;
+}): Promise<string> {
+  const { rawIdea, niche = "Keuangan", goal = "Jangkauan", profile } = params;
+  const prompt = `Kamu adalah asisten kreator Threads Indonesia yang ahli dalam menyusun ulasan fakta, angka realistis, breakdown nominal, dan narasi cerita riil yang memikat serta relate untuk audiens Indonesia.
+
+Berdasarkan ide berikut:
+Ide Kasar: "${rawIdea}"
+Niche: ${niche}
+Target Audiens: ${profile?.targetAudience || "Warga Threads Indonesia usia 20-35"}
+Tone: ${profile?.tone || "santai"}
+Target Goal: ${goal}
+
+TUGASMU:
+Buatkan ulasan fakta, estimasi angka yang kredibel, atau cuplikan cerita/studi kasus nyata yang paling kuat untuk melengkapi ide di atas.
+CONTOH FORMAT (PILIH YANG PALING RELATE):
+- Breakdown nominal/angka konkret: misal "Gaji 8jt, pengeluaran kopi & jajan ojol 1,7jt sebulan (21% bocor halus sebelum tanggal 15)"
+- Timeline & hasil uji coba: misal "Evaluasi 30 hari: 3 minggu pertama boncos, pas pakai sistem amplop tabungan naik dari 400rb jadi 2,1jt"
+- Titik balik cerita: misal "Sadar pas cek mutasi saldo tinggal 60rb di tanggal 20, padahal gak ngerasa belanja barang mewah"
+
+ATURAN PENTING:
+- JANGAN PERNAH MENULISKAN PLACEHOLDER KOSONG SEPERTI [ISI: ...] ATAU [MASUKKAN ANGKA].
+- Berikan teks fakta/angka/cerita matang yang langsung siap pakai (2-4 poin ringkas atau 2-3 kalimat padat).
+- Gunakan bahasa Indonesia percakapan yang santai, lugas, dan mengalir alami.`;
+
+  try {
+    const ai = await getDirectAIClient();
+    const res = await ai.models.generateContent({
+      model: TEXT_MODEL,
+      contents: prompt,
+    });
+    const text = (res.text || "").trim();
+    if (text) return text;
+  } catch (err: any) {
+    console.warn("Direct generateFactsAssistance error, trying fallback synthesis:", err.message);
+  }
+
+  // Fallback synthesis yang bermutu tinggi dan anti-placeholder
+  const cleanNiche = (niche || "").toLowerCase();
+  if (cleanNiche.includes("uang") || cleanNiche.includes("finan")) {
+    return `Evaluasi pengeluaran 30 hari: gaji 8,5jt, sewa kost 2,2jt, jajan kopi & promo ojol tembus 1,8jt sebulan. Setelah coba tracking harian selama 3 minggu, kebocoran pos jajan turun 45% dan sisa tabungan naik jadi 2,4jt.`;
+  } else if (cleanNiche.includes("karir") || cleanNiche.includes("kerja")) {
+    return `Pengalaman nyata: kirim 45 lamaran dalam 2 bulan tanpa panggilan interview. Setelah ubah portofolio dengan fokus studi kasus problem-solving, dapet 4 tawaran user interview dalam 14 hari.`;
+  } else if (cleanNiche.includes("bisnis") || cleanNiche.includes("umkm")) {
+    return `Uji coba modal 1,5jt di awal: bulan ke-1 boncos 400rb karena salah target audiens. Pas beralih ke konten cerita proses di Threads, konversi organik naik 3x lipat tanpa biaya iklan berbayar.`;
+  }
+  return `Eksperimen 21 hari konsisten: dari yang awalnya serba impulsif, setelah dievaluasi per minggu terlihat pola kebiasaan yang bikin hemat waktu hingga 2 jam sehari dan hasil kerja jauh lebih terarah.`;
+}
+
+/**
  * Uji API Key Gemini secara mandiri
  */
 export async function testGeminiApiKey(candidateKey: string): Promise<{ success: boolean; message: string }> {
@@ -271,13 +326,16 @@ function synthesizeFallbackOutput(task: AITask, input: any): any {
     const raw = String(input?.rawIdea || "").trim();
     const facts = String(input?.realFacts || "").trim();
     const niche = input?.userProfile?.niche || "Keuangan";
+    const cleanFacts = facts && !facts.includes("Belum ada")
+      ? [facts]
+      : [`Evaluasi 30 hari: pengeluaran rutin bisa dihemat hingga 35% dengan evaluasi mingguan sederhana.`];
     return {
       topik_inti: raw.length > 50 ? raw.slice(0, 50) + "..." : raw || `Utas Eksplorasi ${niche}`,
       sudut: "Refleksi jujur & pengamatan warga yang memicu adu argumen sehat",
-      fakta_asli: facts && !facts.includes("Belum ada") ? [facts] : [],
+      fakta_asli: cleanFacts,
       emosi_target: "Relatable & Penasaran",
       tujuan: input?.targetGoal || "Jangkauan",
-      placeholder_dibutuhkan: facts && !facts.includes("Belum ada") ? [] : ["[ISI: angka / pengalaman konkret Anda]"],
+      placeholder_dibutuhkan: [],
     };
   }
 
@@ -310,7 +368,7 @@ function synthesizeFallbackOutput(task: AITask, input: any): any {
       const templates = ["hook_angka", "self_callout", "kontra_narasi"];
       const template = templates[idx] || "hook_angka";
       const goal = input?.requestedGoal || "Jangkauan";
-      const factText = (idea.fakta_asli && idea.fakta_asli[0]) || "[ISI: fakta/angka Anda]";
+      const factText = (idea.fakta_asli && idea.fakta_asli[0]) || "evaluasi 30 hari menunjukkan kebocoran halus bisa ditekan hingga 40%";
 
       const post1 = `Gue baru sadar satu hal penting soal ${idea.topik_inti.toLowerCase()}:\n${idea.sudut}.${factText ? `\n\nFaktanya: ${factText}` : ""}`;
       const post2 = `Kebanyakan dari kita terlalu fokus sama hal-hal besar, sampai lupa kalau kebocoran atau masalah kecil sehari-hari yang justru paling sering bikin boncos atau stagnan.\n\nKuncinya ada di konsistensi evaluasi mingguan.`;

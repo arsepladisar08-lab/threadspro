@@ -29,7 +29,7 @@ ATURAN STRUKTUR OUTPUT PER VARIAN:
 10. first_30_min_plan: 3 langkah aksi kreator pada 30 menit pertama untuk memacu velocity algoritma.
 11. algorithm_signal: sinyal algoritma utama yang ditargetkan (misal: "Memacu conversation depth melalui adu argumen sehat").
 12. signal_confidence: "R" (Resmi Meta) | "P" (Temuan Praktisi) | "H" (Hipotesis).
-13. placeholders_to_fill: daftar slot seperti [ISI: ...] yang masih perlu diisi oleh user jika belum ada data riil.
+13. placeholders_to_fill: Kosongkan array ini ([]) karena teks utas sudah diracik utuh dan tuntas dengan angka & cerita nyata oleh AI tanpa placeholder [ISI: ...]. Utas harus 100% siap langsung diposting.
 
 Format seluruh respons dalam JSON terstruktur sesuai responseSchema.
 `;

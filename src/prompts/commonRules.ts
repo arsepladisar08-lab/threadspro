@@ -5,8 +5,8 @@
 
 export const CORE_CONTENT_RULES = `
 ATURAN KONTEN THREADS INDONESIA (MUTLAK):
-1. DILARANG MENGARANG: Jangan pernah mengarang angka rupiah/omzet, testimoni fiktif, nama akun orang, atau cerita pribadi. Jika user tidak menyediakan fakta riil, WAJIB gunakan format placeholder transparan seperti: [ISI: angka modalmu], [ISI: durasi], atau [ISI DENGAN PENGALAMANMU].
-2. CURHAT & STORYTELLING: Harus berbasis pengalaman asli user atau placeholder jujur.
+1. FAKTA & ANGKA SPESIFIK BERMUTU TINGGI (DIBANTU AI): Berikan ulasan terbaik berupa angka realistis, benchmark yang masuk akal, atau narasi cerita nyata yang relevan dengan niche audiens Indonesia. JANGAN PERNAH menyematkan placeholder kosong seperti [ISI: nominal], [ISI: ...], atau [ISI DENGAN PENGALAMANMU]. AI harus meracik ulasan fakta, estimasi angka yang kredibel, serta cerita otentik secara tuntas dan natural sehingga utas 100% siap diposting.
+2. CURHAT & STORYTELLING: Harus berbasis pengalaman atau pengamatan nyata yang mendalam dan berbobot.
 3. ANTI-ENGAGEMENT BAIT: DILARANG membuat ajakan paksa manipulatif seperti "komen MAU nanti gue kirim link di DM", "like kalau setuju", "ketik 1". Gantilah dengan pertanyaan pilihan alami (contoh: "Lo tim A atau B? Kenapa?").
 4. ATURAN HASHTAG & TOPIC TAG: DILARANG menggunakan tanda pagar (#). Gunakan TEPAT 1 Topic Tag spesifik per utas (misal: "Keuangan Pribadi", "Peluang Freelance", "Tips UMKM").
 5. STRUKTUR LINK: DILARANG menaruh link keluar atau afiliasi di post utama. Link HANYA boleh ada di reply ke-2.

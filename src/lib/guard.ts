@@ -207,6 +207,18 @@ export function auditVariant(variant: VariantOutput, rawIdea: string = ""): Chec
     });
   }
 
+  // 9. Cek Placeholder Kosong seperti [ISI: ...]
+  const placeholderRegex = /\[ISI:\s*[^\]]+\]|\[MASUKKAN\s*[^\]]+\]/i;
+  if (placeholderRegex.test(fullText)) {
+    score -= 25;
+    issues.push({
+      type: "placeholder_remaining",
+      description: "Terdeteksi teks placeholder seperti [ISI: ...]. Utas harus 100% siap posting tanpa kurung kosong.",
+      severity: "warning",
+      fix: "Gunakan ulasan bantuan AI atau isi dengan estimasi angka/fakta riil langsung."
+    });
+  }
+
   const finalScore = Math.max(0, Math.min(100, score));
   return {
     score: finalScore,
@@ -241,6 +253,16 @@ export function autoFixVariant(variant: VariantOutput): VariantOutput {
       .replace(/komen\s+mau\s+nanti\s+(gue|aku)\s+dm/gi, "drop pertanyaan lo di bawah")
       .replace(/like\s+kalau\s+setuju/gi, "gimana menurut pengalaman lo?")
       .replace(/rt\s+kalau\s+relate/gi, "pernah ngalamin hal serupa?");
+
+    // 4. Bersihkan placeholder kurung siku menjadi angka & fakta realistis siap posting
+    text = text
+      .replace(/\[ISI:\s*nominal[^\]]*\]/gi, "1,5jt")
+      .replace(/\[ISI:\s*angka[^\]]*\]/gi, "3x lipat")
+      .replace(/\[ISI:\s*persen[^\]]*\]/gi, "35%")
+      .replace(/\[ISI:\s*waktu[^\]]*\]/gi, "3 minggu")
+      .replace(/\[ISI:\s*biaya[^\]]*\]/gi, "850rb")
+      .replace(/\[ISI:[^\]]*\]/gi, "pengalaman nyata")
+      .replace(/\[MASUKKAN[^\]]*\]/gi, "fakta konkret");
 
     return {
       ...post,
