@@ -12,6 +12,7 @@ export const CalendarPage: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [weeklyTheme, setWeeklyTheme] = useState("");
   const [summaryRationale, setSummaryRationale] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     storage.getProfile().then((p) => {
@@ -147,6 +148,7 @@ export const CalendarPage: React.FC = () => {
 
   const handleGenerateAI = async () => {
     setIsGenerating(true);
+    setErrorMessage(null);
     try {
       const output = await generateJSON("calendar", {
         niche: profile?.niche || "Keuangan",
@@ -164,7 +166,7 @@ export const CalendarPage: React.FC = () => {
       }
     } catch (e: any) {
       console.error("Gagal generate kalender:", e);
-      alert(`Gagal membuat kalender: ${e.message}`);
+      setErrorMessage(e.message || "Gagal membuat kalender via AI. Silakan coba lagi.");
     } finally {
       setIsGenerating(false);
     }
@@ -275,6 +277,19 @@ export const CalendarPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {errorMessage && (
+        <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-500/30 flex items-center justify-between gap-3 text-xs text-rose-300">
+          <span>{errorMessage}</span>
+          <button
+            type="button"
+            onClick={() => setErrorMessage(null)}
+            className="p-1 text-rose-400 hover:text-white transition cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Rationale Banner */}
       {weeklyTheme && (

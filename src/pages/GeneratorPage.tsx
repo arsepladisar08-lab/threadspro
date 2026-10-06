@@ -15,6 +15,8 @@ import {
   Send,
   Wand2,
   AlertTriangle,
+  AlertCircle,
+  ExternalLink,
   Clock,
   ArrowRight,
   RefreshCw,
@@ -24,6 +26,7 @@ import {
   Tag,
   Lightbulb,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export const GeneratorPage: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -32,6 +35,8 @@ export const GeneratorPage: React.FC = () => {
   const [realFacts, setRealFacts] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentStep, setCurrentStep] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [generationNotice, setGenerationNotice] = useState<string | null>(null);
   const [result, setResult] = useState<GenerationOutput | null>(null);
   const [activeVariantIdx, setActiveVariantIdx] = useState(0);
   const [copiedPostIdx, setCopiedPostIdx] = useState<number | null>(null);
@@ -71,18 +76,33 @@ export const GeneratorPage: React.FC = () => {
     if (!rawIdea.trim()) return;
 
     setIsGenerating(true);
+    setErrorMessage(null);
+    setGenerationNotice(null);
     setCurrentStep("1/4: Mengekstrak Idea DNA & Fakta Asli...");
 
     try {
       const userNiche = profile?.niche || "Keuangan";
 
       // Langkah 1: Ekstraksi Idea DNA
-      const ideaDna = await generateJSON("ideaDna", {
-        rawIdea,
-        realFacts: realFacts || "Belum ada fakta angka spesifik, buat placeholder [ISI: ...]",
-        userProfile: profile,
-        targetGoal: goal,
-      });
+      let ideaDna: any;
+      try {
+        ideaDna = await generateJSON("ideaDna", {
+          rawIdea,
+          realFacts: realFacts || "Belum ada fakta angka spesifik, buat placeholder [ISI: ...]",
+          userProfile: profile,
+          targetGoal: goal,
+        });
+      } catch (e: any) {
+        console.warn("Gagal ekstraksi ideaDna via AI, menggunakan fallback struktural:", e);
+        ideaDna = {
+          topik_inti: rawIdea.slice(0, 50),
+          sudut: "Refleksi jujur & pengalaman nyata",
+          fakta_asli: realFacts ? [realFacts] : [],
+          emosi_target: "Relatable",
+          tujuan: goal,
+          placeholder_dibutuhkan: realFacts ? [] : ["[ISI: fakta/angka Anda]"],
+        };
+      }
 
       // Langkah 2: Retrieval Top-8 & Pemilihan 3 Pola Beragam
       setCurrentStep("2/4: Mengambil Pola Teruji dari Bank Referensi...");
@@ -116,11 +136,11 @@ export const GeneratorPage: React.FC = () => {
 
       // Langkah 4: Guard & Checker (Validasi Kode Murni)
       setCurrentStep("4/4: Menjalankan Quality Guard & Audit Algoritma...");
-      const auditedVariants = writerOutput.variants.map((variant) => {
+      const auditedVariants = (writerOutput?.variants || []).map((variant) => {
         // Hitung ulang karakter post murni di kode
-        const fixedPosts = variant.posts.map((post) => ({
+        const fixedPosts = (variant.posts || []).map((post) => ({
           ...post,
-          char_count: post.text.length,
+          char_count: (post.text || "").length,
         }));
 
         let audited = { ...variant, posts: fixedPosts };
@@ -149,7 +169,9 @@ export const GeneratorPage: React.FC = () => {
       setActiveVariantIdx(finalOutput.recommended_variant ? finalOutput.recommended_variant - 1 : 0);
     } catch (err: any) {
       console.error("Gagal generate:", err);
-      alert(`Terjadi kendala saat menghasilkan utas: ${err.message}`);
+      setErrorMessage(
+        err.message || "Terjadi kendala saat memproses permintaan AI. Anda juga dapat menggunakan API Key mandiri di menu API Lab."
+      );
     } finally {
       setIsGenerating(false);
       setCurrentStep(null);
@@ -229,6 +251,59 @@ export const GeneratorPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Error Alert Banner */}
+      {errorMessage && (
+        <div className="mb-6 p-4 rounded-2xl bg-rose-950/40 border border-rose-500/30 flex items-start justify-between gap-3 text-xs text-rose-300">
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-bold text-white">Gagal Menghasilkan Utas</p>
+              <p className="leading-relaxed text-rose-300/90">{errorMessage}</p>
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={handleGenerate}
+                  className="px-3 py-1 rounded-lg bg-rose-600/30 hover:bg-rose-600/50 border border-rose-500/40 text-white font-semibold transition cursor-pointer"
+                >
+                  Coba Lagi
+                </button>
+                <Link
+                  to="/admin/api-lab"
+                  className="inline-flex items-center gap-1 text-rose-300 hover:text-white underline font-semibold transition"
+                >
+                  <span>Atur API Key Mandiri di API Lab</span>
+                  <ExternalLink className="w-3 h-3" />
+                </Link>
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setErrorMessage(null)}
+            className="p-1 text-rose-400 hover:text-white transition cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Generation Notice Banner */}
+      {generationNotice && (
+        <div className="mb-6 p-3.5 rounded-2xl bg-amber-950/30 border border-amber-500/30 flex items-center justify-between gap-3 text-xs text-amber-300">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>{generationNotice}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setGenerationNotice(null)}
+            className="p-1 text-amber-400 hover:text-white transition cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Main Grid: Form Input (Left) & Variants Output (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">

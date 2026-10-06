@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { GoogleGenAI } from "@google/genai";
 import { TASK_PROMPTS, TASK_GEMINI_SCHEMAS, TASK_ZOD_SCHEMAS, AITask } from "../src/services/ai";
-import { TEXT_MODEL } from "../src/config";
+import { TEXT_MODEL, FALLBACK_MODELS } from "../src/config";
 
 // In-memory rate limiting map: ip -> { count, resetTime }
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -72,34 +72,58 @@ export default async function handler(req: any, res: any) {
 
     const contents = typeof input === "string" ? input : JSON.stringify(input);
 
-    const response = await ai.models.generateContent({
-      model: TEXT_MODEL,
-      contents,
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema,
-        temperature: 0.7,
-      },
-    });
+    let lastError: any = null;
+    let validatedData: any = null;
 
-    const rawText = response.text?.trim() || "";
-    if (!rawText) {
-      return res.status(502).json({ error: "Model AI tidak mengembalikan teks jawaban." });
+    for (const modelName of FALLBACK_MODELS) {
+      try {
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents,
+          config: {
+            systemInstruction,
+            responseMimeType: "application/json",
+            responseSchema,
+            temperature: 0.7,
+          },
+        });
+
+        let rawText = response.text?.trim() || "";
+        if (!rawText) continue;
+
+        // Bersihkan markdown code fences jika ada ```json ... ```
+        if (rawText.startsWith("```")) {
+          rawText = rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+        }
+
+        const parsedJson = JSON.parse(rawText);
+        const validated = zodSchema.safeParse(parsedJson);
+
+        if (!validated.success) {
+          console.warn(`Server Zod Warning on ${modelName}:`, validated.error.issues);
+          // Jika output berupa objek JSON yang valid, selamatkan datanya alih-alih dibuang
+          if (parsedJson && typeof parsedJson === "object") {
+            validatedData = parsedJson;
+            break;
+          }
+          continue;
+        }
+
+        validatedData = validated.data;
+        break;
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`Model ${modelName} gagal: ${err.message?.slice(0, 80)}, mencoba fallback...`);
+      }
     }
 
-    const parsedJson = JSON.parse(rawText);
-    const validated = zodSchema.safeParse(parsedJson);
-
-    if (!validated.success) {
-      console.error("Server Zod Error:", validated.error);
+    if (!validatedData) {
       return res.status(502).json({
-        error: "Respons AI tidak sesuai skema validasi server.",
-        details: validated.error.issues,
+        error: lastError?.message || "Semua model AI sedang sibuk. Silakan coba kembali sesaat lagi.",
       });
     }
 
-    return res.status(200).json(validated.data);
+    return res.status(200).json(validatedData);
   } catch (err: any) {
     console.error("AI Proxy Error:", err);
     return res.status(500).json({ error: err.message || "Kegagalan internal pada proxy AI." });

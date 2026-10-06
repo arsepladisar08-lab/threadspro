@@ -1,6 +1,7 @@
 /**
  * AutoThreads Storage Adapter
  * IndexedDB (via idb-keyval) dengan fallback aman & fitur ekspor/impor JSON
+ * Kompatibel dengan Browser dan Server Node runtime tanpa ReferenceError
  */
 
 import { get, set, del, keys } from "idb-keyval";
@@ -21,6 +22,31 @@ const STORAGE_KEYS = {
   THREADS_APP_CREDS: "autothreads_threads_app_creds",
 };
 
+function safeGetLocal(key: string): string | null {
+  if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
+    try {
+      return localStorage.getItem(key);
+    } catch {}
+  }
+  return null;
+}
+
+function safeSetLocal(key: string, val: string): void {
+  if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
+    try {
+      localStorage.setItem(key, val);
+    } catch {}
+  }
+}
+
+function safeRemoveLocal(key: string): void {
+  if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
+    try {
+      localStorage.removeItem(key);
+    } catch {}
+  }
+}
+
 // ==================== STORAGE IMPLEMENTATION ====================
 
 export const storage = {
@@ -29,7 +55,7 @@ export const storage = {
     try {
       return (await get(STORAGE_KEYS.PROFILE)) || null;
     } catch {
-      const local = localStorage.getItem(STORAGE_KEYS.PROFILE);
+      const local = safeGetLocal(STORAGE_KEYS.PROFILE);
       return local ? JSON.parse(local) : null;
     }
   },
@@ -38,7 +64,7 @@ export const storage = {
     try {
       await set(STORAGE_KEYS.PROFILE, profile);
     } catch {
-      localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
+      safeSetLocal(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
     }
   },
 
@@ -47,7 +73,7 @@ export const storage = {
     try {
       return (await get(STORAGE_KEYS.GENERATIONS)) || [];
     } catch {
-      const local = localStorage.getItem(STORAGE_KEYS.GENERATIONS);
+      const local = safeGetLocal(STORAGE_KEYS.GENERATIONS);
       return local ? JSON.parse(local) : [];
     }
   },
@@ -58,7 +84,7 @@ export const storage = {
     try {
       await set(STORAGE_KEYS.GENERATIONS, updated);
     } catch {
-      localStorage.setItem(STORAGE_KEYS.GENERATIONS, JSON.stringify(updated));
+      safeSetLocal(STORAGE_KEYS.GENERATIONS, JSON.stringify(updated));
     }
   },
 
@@ -67,7 +93,7 @@ export const storage = {
     try {
       return (await get(STORAGE_KEYS.CALENDAR)) || [];
     } catch {
-      const local = localStorage.getItem(STORAGE_KEYS.CALENDAR);
+      const local = safeGetLocal(STORAGE_KEYS.CALENDAR);
       return local ? JSON.parse(local) : [];
     }
   },
@@ -76,7 +102,7 @@ export const storage = {
     try {
       await set(STORAGE_KEYS.CALENDAR, items);
     } catch {
-      localStorage.setItem(STORAGE_KEYS.CALENDAR, JSON.stringify(items));
+      safeSetLocal(STORAGE_KEYS.CALENDAR, JSON.stringify(items));
     }
   },
 
@@ -85,7 +111,7 @@ export const storage = {
     try {
       return (await get(STORAGE_KEYS.METRICS)) || [];
     } catch {
-      const local = localStorage.getItem(STORAGE_KEYS.METRICS);
+      const local = safeGetLocal(STORAGE_KEYS.METRICS);
       return local ? JSON.parse(local) : [];
     }
   },
@@ -96,7 +122,7 @@ export const storage = {
     try {
       await set(STORAGE_KEYS.METRICS, updated);
     } catch {
-      localStorage.setItem(STORAGE_KEYS.METRICS, JSON.stringify(updated));
+      safeSetLocal(STORAGE_KEYS.METRICS, JSON.stringify(updated));
     }
   },
 
@@ -105,7 +131,7 @@ export const storage = {
     try {
       return (await get(STORAGE_KEYS.CARD_WEIGHTS)) || {};
     } catch {
-      const local = localStorage.getItem(STORAGE_KEYS.CARD_WEIGHTS);
+      const local = safeGetLocal(STORAGE_KEYS.CARD_WEIGHTS);
       return local ? JSON.parse(local) : {};
     }
   },
@@ -116,7 +142,7 @@ export const storage = {
     try {
       await set(STORAGE_KEYS.CARD_WEIGHTS, weights);
     } catch {
-      localStorage.setItem(STORAGE_KEYS.CARD_WEIGHTS, JSON.stringify(weights));
+      safeSetLocal(STORAGE_KEYS.CARD_WEIGHTS, JSON.stringify(weights));
     }
   },
 
@@ -125,18 +151,18 @@ export const storage = {
     try {
       return (await get(STORAGE_KEYS.CUSTOM_CARDS)) || [];
     } catch {
-      const local = localStorage.getItem(STORAGE_KEYS.CUSTOM_CARDS);
+      const local = safeGetLocal(STORAGE_KEYS.CUSTOM_CARDS);
       return local ? JSON.parse(local) : [];
     }
   },
 
   async saveCustomCard(card: ReferenceCard): Promise<void> {
     const list = await this.getCustomCards();
-    const updated = [card, ...list.filter(c => c.id !== card.id)];
+    const updated = [card, ...list.filter((c) => c.id !== card.id)];
     try {
       await set(STORAGE_KEYS.CUSTOM_CARDS, updated);
     } catch {
-      localStorage.setItem(STORAGE_KEYS.CUSTOM_CARDS, JSON.stringify(updated));
+      safeSetLocal(STORAGE_KEYS.CUSTOM_CARDS, JSON.stringify(updated));
     }
   },
 
@@ -145,7 +171,7 @@ export const storage = {
     try {
       return (await get(STORAGE_KEYS.THREADS_ACCOUNT)) || null;
     } catch {
-      const local = localStorage.getItem(STORAGE_KEYS.THREADS_ACCOUNT);
+      const local = safeGetLocal(STORAGE_KEYS.THREADS_ACCOUNT);
       return local ? JSON.parse(local) : null;
     }
   },
@@ -154,7 +180,7 @@ export const storage = {
     try {
       await set(STORAGE_KEYS.THREADS_ACCOUNT, account);
     } catch {
-      localStorage.setItem(STORAGE_KEYS.THREADS_ACCOUNT, JSON.stringify(account));
+      safeSetLocal(STORAGE_KEYS.THREADS_ACCOUNT, JSON.stringify(account));
     }
   },
 
@@ -164,9 +190,9 @@ export const storage = {
       await del(STORAGE_KEYS.THREADS_TOKEN);
       await del(STORAGE_KEYS.THREADS_POSTS);
     } catch {
-      localStorage.removeItem(STORAGE_KEYS.THREADS_ACCOUNT);
-      localStorage.removeItem(STORAGE_KEYS.THREADS_TOKEN);
-      localStorage.removeItem(STORAGE_KEYS.THREADS_POSTS);
+      safeRemoveLocal(STORAGE_KEYS.THREADS_ACCOUNT);
+      safeRemoveLocal(STORAGE_KEYS.THREADS_TOKEN);
+      safeRemoveLocal(STORAGE_KEYS.THREADS_POSTS);
     }
   },
 
@@ -174,7 +200,7 @@ export const storage = {
     try {
       return (await get(STORAGE_KEYS.THREADS_TOKEN)) || null;
     } catch {
-      return localStorage.getItem(STORAGE_KEYS.THREADS_TOKEN);
+      return safeGetLocal(STORAGE_KEYS.THREADS_TOKEN);
     }
   },
 
@@ -182,7 +208,7 @@ export const storage = {
     try {
       await set(STORAGE_KEYS.THREADS_TOKEN, token);
     } catch {
-      localStorage.setItem(STORAGE_KEYS.THREADS_TOKEN, token);
+      safeSetLocal(STORAGE_KEYS.THREADS_TOKEN, token);
     }
   },
 
@@ -190,7 +216,7 @@ export const storage = {
     try {
       return (await get(STORAGE_KEYS.THREADS_POSTS)) || [];
     } catch {
-      const local = localStorage.getItem(STORAGE_KEYS.THREADS_POSTS);
+      const local = safeGetLocal(STORAGE_KEYS.THREADS_POSTS);
       return local ? JSON.parse(local) : [];
     }
   },
@@ -199,7 +225,7 @@ export const storage = {
     try {
       await set(STORAGE_KEYS.THREADS_POSTS, posts);
     } catch {
-      localStorage.setItem(STORAGE_KEYS.THREADS_POSTS, JSON.stringify(posts));
+      safeSetLocal(STORAGE_KEYS.THREADS_POSTS, JSON.stringify(posts));
     }
   },
 
@@ -208,7 +234,7 @@ export const storage = {
     try {
       return (await get(STORAGE_KEYS.CUSTOM_API_KEY)) || null;
     } catch {
-      return localStorage.getItem(STORAGE_KEYS.CUSTOM_API_KEY);
+      return safeGetLocal(STORAGE_KEYS.CUSTOM_API_KEY);
     }
   },
 
@@ -217,7 +243,7 @@ export const storage = {
     try {
       await set(STORAGE_KEYS.CUSTOM_API_KEY, clean);
     } catch {
-      localStorage.setItem(STORAGE_KEYS.CUSTOM_API_KEY, clean);
+      safeSetLocal(STORAGE_KEYS.CUSTOM_API_KEY, clean);
     }
   },
 
@@ -225,7 +251,7 @@ export const storage = {
     try {
       await del(STORAGE_KEYS.CUSTOM_API_KEY);
     } catch {
-      localStorage.removeItem(STORAGE_KEYS.CUSTOM_API_KEY);
+      safeRemoveLocal(STORAGE_KEYS.CUSTOM_API_KEY);
     }
   },
 
@@ -234,7 +260,7 @@ export const storage = {
     try {
       return (await get(STORAGE_KEYS.THREADS_APP_CREDS)) || null;
     } catch {
-      const local = localStorage.getItem(STORAGE_KEYS.THREADS_APP_CREDS);
+      const local = safeGetLocal(STORAGE_KEYS.THREADS_APP_CREDS);
       return local ? JSON.parse(local) : null;
     }
   },
@@ -243,7 +269,7 @@ export const storage = {
     try {
       await set(STORAGE_KEYS.THREADS_APP_CREDS, creds);
     } catch {
-      localStorage.setItem(STORAGE_KEYS.THREADS_APP_CREDS, JSON.stringify(creds));
+      safeSetLocal(STORAGE_KEYS.THREADS_APP_CREDS, JSON.stringify(creds));
     }
   },
 

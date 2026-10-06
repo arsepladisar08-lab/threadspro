@@ -3,8 +3,14 @@
  * Model, environment, and system constants
  */
 
-export const TEXT_MODEL = "gemini-3.8-flash";
+export const TEXT_MODEL = "gemini-3.1-flash-lite";
 export const EMBED_MODEL = "gemini-embedding-2-preview";
+export const FALLBACK_MODELS = [
+  "gemini-3.1-flash-lite",
+  "gemini-3-flash-preview",
+  "gemini-flash-latest",
+  "gemini-3.8-flash",
+];
 
 export const CONFIG = {
   appName: "AutoThreads",

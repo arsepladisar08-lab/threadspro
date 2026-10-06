@@ -9,6 +9,7 @@ export const ReviewPage: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [reviewResult, setReviewResult] = useState<ViralThreadReview | null>(null);
   const [draftSaved, setDraftSaved] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,6 +17,7 @@ export const ReviewPage: React.FC = () => {
 
     setIsAnalyzing(true);
     setDraftSaved(false);
+    setErrorMessage(null);
     try {
       const output = await generateJSON<ViralThreadReview>("review", {
         threadText,
@@ -26,7 +28,7 @@ export const ReviewPage: React.FC = () => {
       }
     } catch (e: any) {
       console.error("Gagal menganalisis utas:", e);
-      alert(`Gagal menganalisis utas: ${e.message}`);
+      setErrorMessage(e.message || "Gagal menganalisis utas. Silakan coba lagi.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -79,6 +81,19 @@ export const ReviewPage: React.FC = () => {
           Bedah kerangka pola dan psikologi di balik utas orang lain yang ramai, tanpa menyalin satu kalimat pun.
         </p>
       </div>
+
+      {errorMessage && (
+        <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-500/30 flex items-center justify-between gap-3 text-xs text-rose-300">
+          <span>{errorMessage}</span>
+          <button
+            type="button"
+            onClick={() => setErrorMessage(null)}
+            className="p-1 text-rose-400 hover:text-white transition cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Input Column */}

@@ -13,6 +13,7 @@ export const ReplyPage: React.FC = () => {
   const [commentText, setCommentText] = useState("");
   const [postContext, setPostContext] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [replies, setReplies] = useState<ReplyOption[]>([]);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
 
@@ -21,6 +22,7 @@ export const ReplyPage: React.FC = () => {
     if (!commentText.trim()) return;
 
     setIsGenerating(true);
+    setErrorMessage(null);
     try {
       const output = await generateJSON("reply", {
         comment: commentText,
@@ -32,7 +34,7 @@ export const ReplyPage: React.FC = () => {
       }
     } catch (e: any) {
       console.error("Gagal generate balasan:", e);
-      alert(`Gagal membuat balasan: ${e.message}`);
+      setErrorMessage(e.message || "Gagal membuat balasan. Silakan coba lagi.");
     } finally {
       setIsGenerating(false);
     }
@@ -58,6 +60,19 @@ export const ReplyPage: React.FC = () => {
           Ubah komentar audiens menjadi percakapan mendalam. Jangan biarkan obrolan mati dengan sekadar "makasih kak".
         </p>
       </div>
+
+      {errorMessage && (
+        <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-500/30 flex items-center justify-between gap-3 text-xs text-rose-300">
+          <span>{errorMessage}</span>
+          <button
+            type="button"
+            onClick={() => setErrorMessage(null)}
+            className="p-1 text-rose-400 hover:text-white transition cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Form Column */}
