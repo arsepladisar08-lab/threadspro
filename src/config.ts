@@ -13,7 +13,7 @@ export const CONFIG = {
   embedModel: EMBED_MODEL,
   defaultAiMode: (import.meta.env?.VITE_AI_MODE || "direct") as "direct" | "proxy",
   storageAdapter: (import.meta.env?.VITE_STORAGE || "local") as "local" | "supabase",
-  threadsMock: import.meta.env?.VITE_THREADS_MOCK !== "false", // default mock in dev/preview
+  threadsMock: import.meta.env?.VITE_THREADS_MOCK === "true", // default false (non-mock mode)
   provenanceWeights: {
     E: 1.0, // Terbukti di akun sendiri
     D: 0.7, // Threads keyword search

@@ -16,6 +16,7 @@ import { MetricsPage } from "./pages/MetricsPage";
 import { BankPage } from "./pages/BankPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { ThreadsApiLabPage } from "./pages/ThreadsApiLabPage";
+import { AuthCallbackPage } from "./pages/AuthCallbackPage";
 
 export default function App() {
   return (
@@ -38,6 +39,7 @@ export default function App() {
             <Route path="/admin/bank" element={<BankPage />} />
             <Route path="/profil" element={<ProfilePage />} />
             <Route path="/admin/api-lab" element={<ThreadsApiLabPage />} />
+            <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

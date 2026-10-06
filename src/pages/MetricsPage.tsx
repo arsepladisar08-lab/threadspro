@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { BarChart3, Plus, TrendingUp, Info, Clock, MessageSquare, Heart, Users, Eye, HelpCircle } from "lucide-react";
+import { BarChart3, Plus, TrendingUp, Info, Clock, MessageSquare, Heart, Users, Eye, HelpCircle, RefreshCw, CheckCircle2 } from "lucide-react";
 import { storage } from "../lib/storage";
 import { MetricEntry, CardUserWeight } from "../types";
+import { threadsClient } from "../services/threadsClient";
 import {
   calculateReplyToLike,
   calculateEngagementRate,
@@ -13,6 +14,8 @@ import {
 export const MetricsPage: React.FC = () => {
   const [entries, setEntries] = useState<MetricEntry[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncNotice, setSyncNotice] = useState<string | null>(null);
 
   // Form State
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
@@ -34,52 +37,56 @@ export const MetricsPage: React.FC = () => {
 
   const loadMetrics = async () => {
     const list = await storage.getMetrics();
-    if (list && list.length > 0) {
-      setEntries(list);
-    } else {
-      // Data awal demonstrasi jika masih kosong
-      const initialSeed: MetricEntry[] = [
-        {
-          id: "m1",
-          date: "2026-10-01",
-          topicTag: "Keuangan Pribadi",
-          hookType: "hook_angka",
-          timeWIB: "19.30 - 22.30 WIB",
-          views: 3400,
-          likes: 210,
-          replies: 54, // RTL = 0.257
-          replyDepth: 22,
-          profileVisits: 65,
-          follows: 14,
-          first60MinInteractions: 35,
-          replyToLike: 0.257,
-          velocity60: 0.58,
-          engagementRate: 0.084,
-          cardId: "K01",
-        },
-        {
-          id: "m2",
-          date: "2026-10-03",
-          topicTag: "Self Improvement",
-          hookType: "self_callout",
-          timeWIB: "07.30 - 09.00 WIB",
-          views: 5200,
-          likes: 420,
-          replies: 78, // RTL = 0.185
-          replyDepth: 35,
-          profileVisits: 90,
-          follows: 22,
-          first60MinInteractions: 52,
-          replyToLike: 0.185,
-          velocity60: 0.86,
-          engagementRate: 0.102,
-          cardId: "K02",
-        },
-      ];
-      setEntries(initialSeed);
-      for (const item of initialSeed) {
+    // Bersihkan data dummy mock seed sebelumnya agar murni data asli
+    const cleanList = (list || []).filter((item) => item.id !== "m1" && item.id !== "m2");
+    setEntries(cleanList);
+  };
+
+  const handleSyncFromThreads = async () => {
+    setIsSyncing(true);
+    setSyncNotice(null);
+    try {
+      const posts = await threadsClient.getOwnPosts();
+      if (!posts || posts.length === 0) {
+        setSyncNotice("Belum ada postingan terdeteksi di akun Threads. Pastikan akun Threads telah terhubung di menu Profil / API Lab.");
+        return;
+      }
+
+      const imported: MetricEntry[] = posts.map((p) => {
+        const rtl = calculateReplyToLike(p.insights.replies, p.insights.likes);
+        const eng = calculateEngagementRate(p.insights.likes, p.insights.replies, 0, p.insights.views);
+        return {
+          id: `th_${p.id}`,
+          date: p.timestamp ? p.timestamp.split("T")[0] : new Date().toISOString().split("T")[0],
+          topicTag: "Threads Post",
+          hookType: "organik",
+          timeWIB: "Waktu Nyata",
+          views: p.insights.views,
+          likes: p.insights.likes,
+          replies: p.insights.replies,
+          replyDepth: 0,
+          profileVisits: 0,
+          follows: 0,
+          first60MinInteractions: 0,
+          replyToLike: rtl ? Number(rtl.toFixed(3)) : null,
+          velocity60: 0,
+          engagementRate: eng ? Number(eng.toFixed(3)) : null,
+          notes: p.text.slice(0, 60),
+        };
+      });
+
+      for (const item of imported) {
         await storage.saveMetric(item);
       }
+
+      const updated = [...imported, ...entries.filter((e) => !imported.some((imp) => imp.id === e.id))];
+      setEntries(updated);
+      setSyncNotice(`Berhasil menarik ${imported.length} data postingan nyata dari akun Threads Anda.`);
+    } catch (err: any) {
+      setSyncNotice(`Gagal menarik data: ${err.message}`);
+    } finally {
+      setIsSyncing(false);
+      setTimeout(() => setSyncNotice(null), 4000);
     }
   };
 
@@ -143,15 +150,35 @@ export const MetricsPage: React.FC = () => {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 transition cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Catat Metrik Postingan</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleSyncFromThreads}
+            disabled={isSyncing}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 transition"
+            title="Impor metrik dari postingan akun Threads asli"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-indigo-400 ${isSyncing ? "animate-spin" : ""}`} />
+            <span>{isSyncing ? "Menarik..." : "Tarik Data Threads"}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 transition cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Catat Metrik Postingan</span>
+          </button>
+        </div>
       </div>
+
+      {syncNotice && (
+        <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 text-xs text-neutral-200 flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{syncNotice}</span>
+        </div>
+      )}
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -335,30 +362,49 @@ export const MetricsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-800/60 font-mono text-xs">
-              {entries.map((item) => (
-                <tr key={item.id} className="hover:bg-neutral-800/30 transition">
-                  <td className="p-3">
-                    <div className="font-semibold text-white font-sans">{item.topicTag}</div>
-                    <div className="text-[10px] text-neutral-500 font-sans">{item.date}</div>
-                  </td>
-                  <td className="p-3 font-sans text-neutral-400">{item.timeWIB}</td>
-                  <td className="p-3 text-right font-semibold">{item.views.toLocaleString()}</td>
-                  <td className="p-3 text-right text-rose-400">{item.likes}</td>
-                  <td className="p-3 text-right text-indigo-400 font-bold">{item.replies}</td>
-                  <td className="p-3 text-right">
-                    <span
-                      className={`px-2 py-0.5 rounded-md font-bold ${
-                        item.replyToLike && item.replyToLike >= 0.15
-                          ? "bg-emerald-500/10 text-emerald-400"
-                          : "bg-neutral-800 text-neutral-400"
-                      }`}
+              {entries.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center font-sans text-neutral-400">
+                    <p className="text-sm font-semibold text-white mb-1">Belum Ada Data Metrik Riwayat</p>
+                    <p className="text-xs text-neutral-500 mb-3">
+                      Data dummy mock telah dinonaktifkan. Catat metrik postingan Anda secara mandiri atau klik "Tarik Data Threads" untuk mengimpor dari akun Threads asli Anda.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddForm(true)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition"
                     >
-                      {item.replyToLike !== null ? item.replyToLike.toFixed(3) : "-"}
-                    </span>
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Catat Metrik Sekarang</span>
+                    </button>
                   </td>
-                  <td className="p-3 text-right text-neutral-400">{item.velocity60} /mnt</td>
                 </tr>
-              ))}
+              ) : (
+                entries.map((item) => (
+                  <tr key={item.id} className="hover:bg-neutral-800/30 transition">
+                    <td className="p-3">
+                      <div className="font-semibold text-white font-sans">{item.topicTag}</div>
+                      <div className="text-[10px] text-neutral-500 font-sans">{item.date}</div>
+                    </td>
+                    <td className="p-3 font-sans text-neutral-400">{item.timeWIB}</td>
+                    <td className="p-3 text-right font-semibold">{item.views.toLocaleString()}</td>
+                    <td className="p-3 text-right text-rose-400">{item.likes}</td>
+                    <td className="p-3 text-right text-indigo-400 font-bold">{item.replies}</td>
+                    <td className="p-3 text-right">
+                      <span
+                        className={`px-2 py-0.5 rounded-md font-bold ${
+                          item.replyToLike && item.replyToLike >= 0.15
+                            ? "bg-emerald-500/10 text-emerald-400"
+                            : "bg-neutral-800 text-neutral-400"
+                        }`}
+                      >
+                        {item.replyToLike !== null ? item.replyToLike.toFixed(3) : "-"}
+                      </span>
+                    </td>
+                    <td className="p-3 text-right text-neutral-400">{item.velocity60} /mnt</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

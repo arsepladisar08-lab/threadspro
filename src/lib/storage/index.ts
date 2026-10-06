@@ -15,6 +15,8 @@ const STORAGE_KEYS = {
   CUSTOM_CARDS: "autothreads_custom_cards",
   EMBED_CACHE: "autothreads_embed_cache",
   THREADS_ACCOUNT: "autothreads_account",
+  THREADS_POSTS: "autothreads_posts",
+  THREADS_TOKEN: "autothreads_token",
 };
 
 // ==================== STORAGE IMPLEMENTATION ====================
@@ -136,7 +138,7 @@ export const storage = {
     }
   },
 
-  // Threads Mock Account
+  // Threads Account & Token
   async getThreadsAccount(): Promise<any | null> {
     try {
       return (await get(STORAGE_KEYS.THREADS_ACCOUNT)) || null;
@@ -151,6 +153,51 @@ export const storage = {
       await set(STORAGE_KEYS.THREADS_ACCOUNT, account);
     } catch {
       localStorage.setItem(STORAGE_KEYS.THREADS_ACCOUNT, JSON.stringify(account));
+    }
+  },
+
+  async clearThreadsAccount(): Promise<void> {
+    try {
+      await del(STORAGE_KEYS.THREADS_ACCOUNT);
+      await del(STORAGE_KEYS.THREADS_TOKEN);
+      await del(STORAGE_KEYS.THREADS_POSTS);
+    } catch {
+      localStorage.removeItem(STORAGE_KEYS.THREADS_ACCOUNT);
+      localStorage.removeItem(STORAGE_KEYS.THREADS_TOKEN);
+      localStorage.removeItem(STORAGE_KEYS.THREADS_POSTS);
+    }
+  },
+
+  async getThreadsToken(): Promise<string | null> {
+    try {
+      return (await get(STORAGE_KEYS.THREADS_TOKEN)) || null;
+    } catch {
+      return localStorage.getItem(STORAGE_KEYS.THREADS_TOKEN);
+    }
+  },
+
+  async saveThreadsToken(token: string): Promise<void> {
+    try {
+      await set(STORAGE_KEYS.THREADS_TOKEN, token);
+    } catch {
+      localStorage.setItem(STORAGE_KEYS.THREADS_TOKEN, token);
+    }
+  },
+
+  async getThreadsPosts(): Promise<any[]> {
+    try {
+      return (await get(STORAGE_KEYS.THREADS_POSTS)) || [];
+    } catch {
+      const local = localStorage.getItem(STORAGE_KEYS.THREADS_POSTS);
+      return local ? JSON.parse(local) : [];
+    }
+  },
+
+  async saveThreadsPosts(posts: any[]): Promise<void> {
+    try {
+      await set(STORAGE_KEYS.THREADS_POSTS, posts);
+    } catch {
+      localStorage.setItem(STORAGE_KEYS.THREADS_POSTS, JSON.stringify(posts));
     }
   },
 

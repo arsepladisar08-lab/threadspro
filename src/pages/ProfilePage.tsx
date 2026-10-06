@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { UserProfile, NicheType, ToneType } from "../types";
 import { storage } from "../lib/storage";
-import { User, Save, CheckCircle2, Download, Upload, AlertCircle, Sparkles } from "lucide-react";
+import { User, Save, CheckCircle2, Download, Upload, AlertCircle, Sparkles, Key, Link2, Unlink } from "lucide-react";
+import { threadsClient, ThreadsAccount } from "../services/threadsClient";
+import { ThreadsConnectModal } from "../components/ThreadsConnectModal";
 
 const NICHES: { label: NicheType; desc: string; mode: "umum" | "hub" }[] = [
   { label: "Keuangan", desc: "Tips anti-teori, kesalahan finansial, budgeting, investasi real", mode: "umum" },
@@ -41,12 +43,22 @@ export const ProfilePage: React.FC = () => {
 
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [threadsAccount, setThreadsAccount] = useState<ThreadsAccount | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     storage.getProfile().then((data) => {
       if (data) setProfile(data);
     });
+    threadsClient.getAccount().then(setThreadsAccount);
   }, []);
+
+  const handleDisconnectThreads = async () => {
+    if (confirm("Putuskan koneksi akun Threads ini?")) {
+      await threadsClient.disconnectAccount();
+      setThreadsAccount(null);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,6 +147,76 @@ export const ProfilePage: React.FC = () => {
           <span>Profil berhasil disimpan ke penyimpanan lokal perangkat Anda.</span>
         </div>
       )}
+
+      {/* Threads Official Account Connection Card */}
+      <div className="mb-8 p-5 rounded-2xl bg-neutral-900 border border-neutral-800">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            {threadsAccount ? (
+              <img
+                src={threadsAccount.threads_profile_picture_url}
+                alt={threadsAccount.username}
+                className="w-12 h-12 rounded-full border border-neutral-700 object-cover"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-lg">
+                @
+              </div>
+            )}
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-white">
+                  {threadsAccount ? `@${threadsAccount.username}` : "Koneksi Akun Threads Asli"}
+                </span>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    threadsAccount
+                      ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                      : "bg-neutral-800 text-neutral-400"
+                  }`}
+                >
+                  {threadsAccount ? "Terhubung (Resmi)" : "Belum Terhubung"}
+                </span>
+              </div>
+              <p className="text-xs text-neutral-400 mt-0.5">
+                {threadsAccount
+                  ? `${threadsAccount.name} • Token aktif untuk publikasi dan metrik`
+                  : "Gunakan Token Akses Meta atau Login OAuth untuk memposting utas langsung ke Threads."}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {threadsAccount ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(true)}
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-neutral-800 hover:bg-neutral-700 text-neutral-300 transition"
+                >
+                  Ganti Token
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDisconnectThreads}
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-300 transition"
+                >
+                  Putuskan
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/25 transition cursor-pointer"
+              >
+                <Key className="w-3.5 h-3.5" />
+                <span>Hubungkan Akun Threads</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
       <form onSubmit={handleSave} className="space-y-8">
         {/* Pilih Niche Utama */}
@@ -275,6 +357,15 @@ export const ProfilePage: React.FC = () => {
           </button>
         </div>
       </form>
+
+      {/* Threads Connect Modal */}
+      <ThreadsConnectModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onConnected={(acc) => {
+          setThreadsAccount(acc);
+        }}
+      />
     </div>
   );
 };
