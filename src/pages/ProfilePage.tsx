@@ -5,6 +5,7 @@ import { storage } from "../lib/storage";
 import { User, Save, CheckCircle2, Download, Upload, AlertCircle, Sparkles, Key, Link2, Unlink } from "lucide-react";
 import { threadsClient, ThreadsAccount } from "../services/threadsClient";
 import { ThreadsConnectModal } from "../components/ThreadsConnectModal";
+import { GeminiKeySettings } from "../components/GeminiKeySettings";
 
 const NICHES: { label: NicheType; desc: string; mode: "umum" | "hub" }[] = [
   { label: "Keuangan", desc: "Tips anti-teori, kesalahan finansial, budgeting, investasi real", mode: "umum" },
@@ -252,6 +253,9 @@ export const ProfilePage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Kunci Google Gemini API Mandiri Card */}
+      <GeminiKeySettings />
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* Niche Selection */}

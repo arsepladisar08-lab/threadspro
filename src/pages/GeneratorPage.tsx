@@ -6,6 +6,7 @@ import { auditVariant, autoFixVariant } from "../lib/guard";
 import { generateJSON, generateFactsAssistance } from "../services/ai";
 import { PublishModal } from "../components/PublishModal";
 import { VisualCardGenerator, VisualTheme, AspectRatio } from "../components/VisualCardGenerator";
+import { GeminiApiKeyModal } from "../components/GeminiApiKeyModal";
 import {
   Sparkles,
   Copy,
@@ -65,8 +66,16 @@ export const GeneratorPage: React.FC = () => {
   const [isEditingTopicTag, setIsEditingTopicTag] = useState(false);
   const [editingTopicTagText, setEditingTopicTagText] = useState("");
   const [editNoticeToast, setEditNoticeToast] = useState<string | null>(null);
+  const [isGeminiModalOpen, setIsGeminiModalOpen] = useState(false);
+  const [hasCustomGeminiKey, setHasCustomGeminiKey] = useState(false);
+
+  const checkCustomKey = async () => {
+    const k = await storage.getCustomApiKey();
+    setHasCustomGeminiKey(Boolean(k));
+  };
 
   useEffect(() => {
+    checkCustomKey();
     storage.getProfile().then((p) => {
       if (p) {
         setProfile(p);
@@ -400,27 +409,53 @@ export const GeneratorPage: React.FC = () => {
           </p>
         </div>
 
-        {profile?.niche && (
-          <div className="text-xs text-zinc-400 font-mono">
-            Niche: <span className="text-zinc-300 font-medium">{profile.niche}</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => setIsGeminiModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-zinc-900 hover:bg-zinc-850 text-zinc-300 border border-zinc-800 transition cursor-pointer"
+            title="Kelola Input Kunci API Gemini Mandiri"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-zinc-400" />
+            <span>Kunci Gemini</span>
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                hasCustomGeminiKey ? "bg-emerald-400" : "bg-zinc-500"
+              }`}
+            />
+          </button>
+
+          {profile?.niche && (
+            <div className="text-xs text-zinc-400 font-mono hidden sm:block">
+              Niche: <span className="text-zinc-300 font-medium">{profile.niche}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Error & Info Alerts */}
       {errorMessage && (
-        <div className="mb-6 p-3.5 rounded-xl bg-zinc-900 border border-rose-500/30 flex items-center justify-between text-xs text-rose-300">
+        <div className="mb-6 p-3.5 rounded-xl bg-zinc-900 border border-rose-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-rose-300">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
             <span>{errorMessage}</span>
           </div>
-          <button
-            type="button"
-            onClick={() => setErrorMessage(null)}
-            className="text-zinc-400 hover:text-white"
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setIsGeminiModalOpen(true)}
+              className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-750 text-zinc-200 text-xs font-medium transition cursor-pointer shrink-0"
+            >
+              Atur Kunci Gemini
+            </button>
+            <button
+              type="button"
+              onClick={() => setErrorMessage(null)}
+              className="text-zinc-400 hover:text-white px-1"
+            >
+              ✕
+            </button>
+          </div>
         </div>
       )}
 
@@ -896,6 +931,15 @@ export const GeneratorPage: React.FC = () => {
           }}
         />
       )}
+
+      {/* Gemini API Key Modal */}
+      <GeminiApiKeyModal
+        isOpen={isGeminiModalOpen}
+        onClose={() => {
+          setIsGeminiModalOpen(false);
+          checkCustomKey();
+        }}
+      />
     </div>
   );
 };

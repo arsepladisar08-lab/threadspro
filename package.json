@@ -4,10 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true tsx server.ts",
-    "start": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true tsx server.ts",
-    "build": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vite build",
-    "preview": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vite preview",
+    "dev": "tsx server.ts",
+    "start": "node server.ts",
+    "build": "vite build",
+    "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
   },

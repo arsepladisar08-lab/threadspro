@@ -56,8 +56,8 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
     { path: "/ulas", label: "Ulas Utas", icon: Search },
     { path: "/metrik", label: "Metrik Tracker", icon: BarChart3 },
     { path: "/bank", label: "Bank Referensi", icon: Database },
-    { path: "/admin/api-lab", label: "API Lab & Kunci", icon: ShieldCheck },
-    { path: "/onboarding", label: "Onboarding Threads", icon: Key },
+    { path: "/admin/api-lab", label: "Kunci API (Gemini & Threads)", icon: Key },
+    { path: "/onboarding", label: "Onboarding Threads", icon: ShieldCheck },
   ];
 
   return (

@@ -204,7 +204,11 @@ function AppContent() {
               }
             />
             <Route path="/profil" element={<ProfilePage />} />
+            <Route path="/settings" element={<ProfilePage />} />
+            <Route path="/pengaturan" element={<ProfilePage />} />
             <Route path="/admin/api-lab" element={<ThreadsApiLabPage />} />
+            <Route path="/api-key" element={<ThreadsApiLabPage />} />
+            <Route path="/gemini" element={<ThreadsApiLabPage />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/onboarding" element={<OnboardingPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />

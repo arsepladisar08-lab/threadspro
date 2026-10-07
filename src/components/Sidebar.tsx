@@ -35,8 +35,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   const secondaryNav = [
-    { path: "/admin/api-lab", label: "API Lab & Kunci", icon: ShieldCheck },
-    { path: "/onboarding", label: "Onboarding Threads", icon: Key },
+    { path: "/admin/api-lab", label: "Kunci API & Lab", icon: Key },
+    { path: "/onboarding", label: "Onboarding Threads", icon: ShieldCheck },
   ];
 
   return (

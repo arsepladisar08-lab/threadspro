@@ -280,8 +280,8 @@ export const UserGuideModal: React.FC<UserGuideModalProps> = ({
                   path: "/bank",
                 },
                 {
-                  title: "Threads API Lab & Manajemen Kunci",
-                  desc: "Kelola token akun Threads asli, kuota 250 post/24 jam, dan kunci Google Gemini mandiri.",
+                  title: "Pengaturan Kunci API (Gemini & Threads)",
+                  desc: "Input Kunci Google Gemini mandiri untuk batas kuota independen, dan hubungkan token resmi Meta Threads.",
                   path: "/admin/api-lab",
                 },
               ].map((item, idx) => (

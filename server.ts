@@ -17,7 +17,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+// Environment constraint: Dev server must run on port 3000
+const PORT = 3000;
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
@@ -59,8 +60,7 @@ async function startServer() {
     const vite = await createServer({
       server: {
         middlewareMode: true,
-        hmr: process.env.DISABLE_HMR !== "true",
-        watch: process.env.DISABLE_HMR === "true" ? null : {},
+        hmr: false,
       },
       appType: "spa",
     });

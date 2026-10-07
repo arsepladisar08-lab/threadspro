@@ -12,6 +12,12 @@ import {
   Eye,
   EyeOff,
   Sliders,
+  Sparkles,
+  Trash2,
+  Save,
+  HelpCircle,
+  Copy,
+  Check,
 } from "lucide-react";
 import {
   threadsClient,
@@ -19,20 +25,32 @@ import {
   QuotaState,
   ThreadsPostData,
 } from "../services/threadsClient";
+import { testGeminiApiKey } from "../services/ai";
 import { storage } from "../lib/storage";
 import { ThreadsConnectModal } from "../components/ThreadsConnectModal";
+import { GeminiKeySettings } from "../components/GeminiKeySettings";
 
 export const ThreadsApiLabPage: React.FC = () => {
   const [account, setAccount] = useState<ThreadsAccount | null>(null);
   const [quota, setQuota] = useState<QuotaState | null>(null);
   const [posts, setPosts] = useState<ThreadsPostData[]>([]);
-  const [activeTab, setActiveTab] = useState<"auth" | "inspector" | "quota">("auth");
+  const [activeTab, setActiveTab] = useState<"gemini" | "auth" | "inspector" | "quota">("gemini");
   const [activeEndpoint, setActiveEndpoint] = useState<string>("user_profile");
   const [rawResponse, setRawResponse] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
+
+  // Gemini API Key State
+  const [geminiKeyInput, setGeminiKeyInput] = useState("");
+  const [hasCustomGeminiKey, setHasCustomGeminiKey] = useState(false);
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [geminiTestStatus, setGeminiTestStatus] = useState<{
+    type: "success" | "error" | "info" | null;
+    message: string;
+  }>({ type: null, message: "" });
+  const [isTestingGemini, setIsTestingGemini] = useState(false);
 
   // Threads Credentials State
   const [threadsTokenInput, setThreadsTokenInput] = useState("");
@@ -48,6 +66,13 @@ export const ThreadsApiLabPage: React.FC = () => {
   }, []);
 
   const loadKeys = async () => {
+    // Muat custom Gemini API Key jika pernah disimpan
+    const customKey = await storage.getCustomApiKey();
+    if (customKey) {
+      setGeminiKeyInput(customKey);
+      setHasCustomGeminiKey(true);
+    }
+
     const token = await storage.getThreadsToken();
     if (token) {
       setThreadsTokenInput(token);
@@ -82,6 +107,54 @@ export const ThreadsApiLabPage: React.FC = () => {
     }
   };
 
+  // --- Gemini API Key Actions ---
+  const handleSaveGeminiKey = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const clean = geminiKeyInput.trim();
+    if (!clean) {
+      setGeminiTestStatus({ type: "error", message: "API Key Gemini tidak boleh kosong." });
+      return;
+    }
+    setIsTestingGemini(true);
+    setGeminiTestStatus({ type: "info", message: "Menguji validitas API Key langsung ke Google Gemini..." });
+
+    try {
+      const res = await testGeminiApiKey(clean);
+      if (res.success) {
+        await storage.saveCustomApiKey(clean);
+        setHasCustomGeminiKey(true);
+        setGeminiTestStatus({
+          type: "success",
+          message: "API Key Google Gemini berhasil diverifikasi dan disimpan secara privat di perangkat Anda!",
+        });
+      } else {
+        setGeminiTestStatus({
+          type: "error",
+          message: `Verifikasi gagal: ${res.message}`,
+        });
+      }
+    } catch (err: any) {
+      setGeminiTestStatus({
+        type: "error",
+        message: `Terjadi kendala saat menguji: ${err.message || "Pastikan kunci API benar."}`,
+      });
+    } finally {
+      setIsTestingGemini(false);
+    }
+  };
+
+  const handleClearGeminiKey = async () => {
+    await storage.clearCustomApiKey();
+    setGeminiKeyInput("");
+    setHasCustomGeminiKey(false);
+    setGeminiTestStatus({
+      type: "info",
+      message: "Kunci API mandiri dihapus. Aplikasi kini menggunakan kunci default dari environment sistem.",
+    });
+    setTimeout(() => setGeminiTestStatus({ type: null, message: "" }), 3500);
+  };
+
+  // --- Threads Token Actions ---
   const handleSaveThreadsToken = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!threadsTokenInput.trim()) {
@@ -216,10 +289,10 @@ export const ThreadsApiLabPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-3 border-b border-zinc-900 pb-5">
         <div>
           <h1 className="text-xl font-semibold text-zinc-100 tracking-tight">
-            API Lab & Diagnostik Meta Threads
+            API Lab & Kunci Mandiri
           </h1>
           <p className="text-xs text-zinc-400 mt-1">
-            Inspeksi endpoint resmi Graph API, monitor limit kuota harian 25 post, dan verifikasi token.
+            Kelola Kunci Gemini API mandiri, Token Meta Threads Graph API, dan inspeksi status kuota.
           </p>
         </div>
 
@@ -242,7 +315,7 @@ export const ThreadsApiLabPage: React.FC = () => {
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 transition cursor-pointer shadow-xs"
           >
             <Key className="w-3.5 h-3.5" />
-            <span>Wizard Koneksi</span>
+            <span>Wizard Koneksi Threads</span>
           </button>
         </div>
       </div>
@@ -255,39 +328,61 @@ export const ThreadsApiLabPage: React.FC = () => {
       )}
 
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-1 p-1 rounded-xl bg-zinc-900 border border-zinc-850 text-xs w-fit">
+      <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl bg-zinc-900 border border-zinc-850 text-xs w-fit">
+        <button
+          type="button"
+          onClick={() => setActiveTab("gemini")}
+          className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+            activeTab === "gemini" ? "bg-zinc-800 text-zinc-100 font-semibold" : "text-zinc-400 hover:text-zinc-200"
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Kunci Gemini API Mandiri</span>
+          {hasCustomGeminiKey && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+        </button>
+
         <button
           type="button"
           onClick={() => setActiveTab("auth")}
-          className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
+          className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
             activeTab === "auth" ? "bg-zinc-800 text-zinc-100 font-semibold" : "text-zinc-400 hover:text-zinc-200"
           }`}
         >
-          Koneksi & Token Threads
+          <Key className="w-3.5 h-3.5" />
+          <span>Token Akun Threads</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab("inspector")}
-          className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
+          className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
             activeTab === "inspector" ? "bg-zinc-800 text-zinc-100 font-semibold" : "text-zinc-400 hover:text-zinc-200"
           }`}
         >
-          Live Endpoint Inspector
+          <Terminal className="w-3.5 h-3.5" />
+          <span>Live Endpoint Inspector</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab("quota")}
-          className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
+          className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
             activeTab === "quota" ? "bg-zinc-800 text-zinc-100 font-semibold" : "text-zinc-400 hover:text-zinc-200"
           }`}
         >
-          Monitor Kuota (25/Hari)
+          <ShieldCheck className="w-3.5 h-3.5" />
+          <span>Monitor Kuota Meta (25/Hari)</span>
         </button>
       </div>
 
-      {/* TAB 1: KONEKSI & TOKEN THREADS */}
+      {/* TAB 1: KUNCI GEMINI API MANDIRI */}
+      {activeTab === "gemini" && (
+        <div className="space-y-6">
+          <GeminiKeySettings />
+        </div>
+      )}
+
+      {/* TAB 2: KONEKSI & TOKEN THREADS */}
       {activeTab === "auth" && (
         <div className="space-y-6">
           <div className="p-5 rounded-2xl border border-zinc-900 bg-zinc-900/20 space-y-4 text-xs">
@@ -297,7 +392,7 @@ export const ThreadsApiLabPage: React.FC = () => {
                   Kredensial Meta Threads Graph API
                 </h2>
                 <p className="text-[11px] text-zinc-400 mt-0.5">
-                  Token disimpan secara aman di IndexedDB perangkat Anda tanpa transit ke server pihak ketiga.
+                  Token disimpan secara privat di IndexedDB perangkat Anda untuk menerbitkan draf dan memeriksa metrik.
                 </p>
               </div>
 
@@ -382,7 +477,7 @@ export const ThreadsApiLabPage: React.FC = () => {
                   </button>
                 ) : (
                   <span className="text-[11px] text-zinc-500">
-                    Belum punya token? Gunakan tombol Wizard Koneksi di kanan atas.
+                    Belum punya token? Gunakan tombol Wizard Koneksi Threads.
                   </span>
                 )}
 
@@ -399,7 +494,7 @@ export const ThreadsApiLabPage: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 2: LIVE ENDPOINT INSPECTOR */}
+      {/* TAB 3: LIVE ENDPOINT INSPECTOR */}
       {activeTab === "inspector" && (
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2 text-xs">
@@ -450,7 +545,7 @@ export const ThreadsApiLabPage: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 3: MONITOR KUOTA */}
+      {/* TAB 4: MONITOR KUOTA */}
       {activeTab === "quota" && (
         <div className="p-5 rounded-2xl border border-zinc-900 bg-zinc-900/20 space-y-4 text-xs">
           <h2 className="text-sm font-semibold text-zinc-100">

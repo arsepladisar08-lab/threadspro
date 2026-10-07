@@ -7,9 +7,12 @@ import {
   PanelLeft,
   PanelLeftClose,
   Menu,
+  Sparkles,
+  Key,
 } from "lucide-react";
 import { storage } from "../lib/storage";
 import { UserProfile } from "../types";
+import { GeminiApiKeyModal } from "./GeminiApiKeyModal";
 
 interface NavbarProps {
   isSidebarCollapsed: boolean;
@@ -27,6 +30,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const location = useLocation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [threadsAccount, setThreadsAccount] = useState<any | null>(null);
+  const [isGeminiModalOpen, setIsGeminiModalOpen] = useState(false);
 
   useEffect(() => {
     storage.getProfile().then(setProfile);
@@ -79,8 +83,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           </Link>
         </div>
 
-        {/* Right Side: Panduan, API Lab, & Profile */}
-        <div className="flex items-center gap-2 text-xs">
+        {/* Right Side: Panduan, Kunci API, API Lab, & Profile */}
+        <div className="flex items-center gap-1.5 sm:gap-2 text-xs">
           {/* Panduan Button */}
           <button
             onClick={onOpenGuide}
@@ -91,10 +95,21 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="hidden sm:inline">Panduan</span>
           </button>
 
+          {/* Kunci API Gemini Modal Trigger */}
+          <button
+            type="button"
+            onClick={() => setIsGeminiModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 transition cursor-pointer"
+            title="Input Kunci API Google Gemini Mandiri"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-zinc-400" />
+            <span>Kunci API</span>
+          </button>
+
           {/* API Lab Link */}
           <Link
             to="/admin/api-lab"
-            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 transition"
+            className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 transition"
             title="Kelola Token Akun Threads & Kunci Gemini"
           >
             <ShieldCheck className="w-3.5 h-3.5" />
@@ -134,6 +149,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </div>
       </div>
+
+      {/* Modal Input Kunci API Gemini Mandiri */}
+      <GeminiApiKeyModal
+        isOpen={isGeminiModalOpen}
+        onClose={() => setIsGeminiModalOpen(false)}
+      />
     </header>
   );
 };
