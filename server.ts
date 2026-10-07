@@ -6,8 +6,10 @@ import fs from "fs";
 import aiHandler from "./api/ai";
 import bankExportHandler from "./api/bank/export";
 import cronDailyHandler from "./api/cron/daily";
+import publishCronHandler from "./api/cron/publish";
 import threadsHandler from "./api/threads";
 import uploadHandler from "./api/upload";
+import cron from "node-cron";
 
 dotenv.config();
 
@@ -33,6 +35,22 @@ app.all("/api/threads", (req, res) => threadsHandler(req, res));
 app.all("/api/upload", (req, res) => uploadHandler(req, res));
 app.all("/api/bank/export", (req, res) => bankExportHandler(req, res));
 app.all("/api/cron/daily", (req, res) => cronDailyHandler(req, res));
+app.all("/api/cron/publish", (req, res) => publishCronHandler(req, res));
+
+// Background Worker Scheduler (Berjalan tiap 1 menit untuk cek eksekusi antrean)
+cron.schedule("* * * * *", async () => {
+  try {
+    // Panggil handler cron internal
+    const mockReq: any = { headers: {}, body: {} };
+    const mockRes: any = {
+      status: () => mockRes,
+      json: () => {},
+    };
+    await publishCronHandler(mockReq, mockRes);
+  } catch (err) {
+    console.warn("[Cron Worker] Error during background queue check:", err);
+  }
+});
 
 // Mount Vite middleware in development or serve dist in production
 async function startServer() {

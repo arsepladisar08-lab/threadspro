@@ -128,12 +128,10 @@ function AppContent() {
       />
 
       {/* Main Work Area with Sidebar for Desktop */}
-      <div className="flex-1 flex w-full min-h-[calc(100vh-4rem)]">
+      <div className="flex-1 flex w-full min-h-[calc(100vh-3.5rem)]">
         {/* Toggleable Collapsed Sidebar (Desktop) */}
         <Sidebar
           isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={handleToggleSidebar}
-          onOpenGuide={() => setIsGuideOpen(true)}
           profile={profile}
         />
 
@@ -215,7 +213,7 @@ function AppContent() {
       </div>
 
       {/* Mobile Touch-Friendly Bottom Bar */}
-      <BottomNav onOpenMenu={() => setIsMobileDrawerOpen(true)} />
+      <BottomNav />
 
       {/* Mobile Touch-Friendly Slide Drawer */}
       <MobileDrawer

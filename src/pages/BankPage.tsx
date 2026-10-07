@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Database, Download, Search, CheckCircle2, Clock, Filter, Sparkles, Plus, AlertCircle, ArrowUpRight } from "lucide-react";
+import { Database, Download, Search, CheckCircle2, Clock, Filter, Sparkles, Plus, AlertCircle } from "lucide-react";
 import { REFERENCE_CARDS, ALGORITHM_RULES } from "../data/bank";
 import { ReferenceCard, Provenance } from "../types";
 import { ProvenanceBadge } from "../components/ProvenanceBadge";
@@ -33,12 +33,9 @@ export const BankPage: React.FC = () => {
   };
 
   const handleRejectPending = async (cardId: string) => {
-    const updated = customCards.filter((c) => c.id !== cardId);
-    // Simpan ulang tanpa kartu tersebut
     try {
       const list = await storage.getCustomCards();
       const filtered = list.filter((c) => c.id !== cardId);
-      // save update
       localStorage.setItem("autothreads_custom_cards", JSON.stringify(filtered));
       await loadCards();
     } catch (e) {
@@ -46,7 +43,6 @@ export const BankPage: React.FC = () => {
     }
   };
 
-  // Ekspor BANK_REFERENSI_THREADS.md
   const handleExportMarkdown = () => {
     let md = "# BANK REFERENSI UTAS THREADS INDONESIA\n";
     md += `Diekspor dari AutoThreads pada ${new Date().toISOString().split("T")[0]}\n\n`;
@@ -78,7 +74,6 @@ export const BankPage: React.FC = () => {
     a.click();
   };
 
-  // Filter cards
   const filteredCards = cards.filter((card) => {
     const matchesSearch =
       card.niche.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -95,59 +90,58 @@ export const BankPage: React.FC = () => {
   const pendingList = customCards.filter((c) => c.status === "pending");
 
   return (
-    <div className="max-w-5xl mx-auto px-3 sm:px-5 md:px-6 py-6 sm:py-8 pb-24 space-y-6">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 pb-28 space-y-6">
+      {/* Calm Header */}
+      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-3 border-b border-zinc-900 pb-5">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              <Database className="w-5 h-5" />
-            </span>
-            <h1 className="text-xl sm:text-2xl font-black text-white">Bank Referensi Utas</h1>
-          </div>
-          <p className="text-xs sm:text-sm text-neutral-400 mt-1">
-            Repositori pola teruji, hook ber-slot, dan kaidah algoritma Threads Indonesia.
+          <h1 className="text-xl font-semibold text-zinc-100 tracking-tight">
+            Bank Referensi Utas
+          </h1>
+          <p className="text-xs text-zinc-400 mt-1">
+            Repositori pola hook ber-slot, kerangka emosi, dan kaidah algoritma Threads teruji.
           </p>
         </div>
 
         <button
           type="button"
           onClick={handleExportMarkdown}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-neutral-900 border border-neutral-800 text-neutral-200 hover:text-white hover:border-neutral-700 transition cursor-pointer"
-          title="Ekspor format markdown untuk Custom GPTs / Claude Projects"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-900 hover:bg-zinc-850 text-zinc-300 border border-zinc-800 transition cursor-pointer self-start sm:self-auto"
         >
-          <Download className="w-3.5 h-3.5 text-indigo-400" />
-          <span>Ekspor BANK_REFERENSI.md</span>
+          <Download className="w-3.5 h-3.5 text-zinc-400" />
+          <span>Ekspor Markdown (.md)</span>
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-neutral-800 text-xs font-semibold">
+      {/* Calm Tabs */}
+      <div className="flex items-center gap-1 p-1 rounded-xl bg-zinc-900 border border-zinc-850 text-xs w-fit">
         <button
+          type="button"
           onClick={() => setActiveTab("cards")}
-          className={`pb-2.5 px-3 border-b-2 transition ${
-            activeTab === "cards" ? "border-indigo-500 text-white" : "border-transparent text-neutral-400"
+          className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
+            activeTab === "cards" ? "bg-zinc-800 text-zinc-100 font-semibold" : "text-zinc-400 hover:text-zinc-200"
           }`}
         >
-          Koleksi Kartu Pola ({cards.length})
+          Koleksi Pola ({cards.length})
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab("rules")}
-          className={`pb-2.5 px-3 border-b-2 transition ${
-            activeTab === "rules" ? "border-indigo-500 text-white" : "border-transparent text-neutral-400"
+          className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
+            activeTab === "rules" ? "bg-zinc-800 text-zinc-100 font-semibold" : "text-zinc-400 hover:text-zinc-200"
           }`}
         >
           Aturan Algoritma ({ALGORITHM_RULES.length})
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab("pending")}
-          className={`pb-2.5 px-3 border-b-2 transition flex items-center gap-1.5 ${
-            activeTab === "pending" ? "border-indigo-500 text-white" : "border-transparent text-neutral-400"
+          className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+            activeTab === "pending" ? "bg-zinc-800 text-zinc-100 font-semibold" : "text-zinc-400 hover:text-zinc-200"
           }`}
         >
           <span>Antrean Pending</span>
           {pendingList.length > 0 && (
-            <span className="w-4 h-4 rounded-full bg-amber-500 text-black text-[10px] font-bold flex items-center justify-center">
+            <span className="w-4 h-4 rounded-full bg-zinc-700 text-zinc-200 text-[10px] flex items-center justify-center font-bold">
               {pendingList.length}
             </span>
           )}
@@ -158,15 +152,15 @@ export const BankPage: React.FC = () => {
       {activeTab === "cards" && (
         <div className="space-y-4">
           {/* Search & Filters */}
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs">
             <div className="sm:col-span-6 relative">
-              <Search className="w-4 h-4 absolute left-3 top-3 text-neutral-500" />
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-zinc-500" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari niche, format, emosi, atau pola hook..."
-                className="w-full pl-9 pr-3 py-2 rounded-xl bg-neutral-900 border border-neutral-800 text-xs text-white placeholder-neutral-500 focus:outline-hidden focus:border-indigo-500"
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-zinc-950 border border-zinc-850 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-hidden focus:border-zinc-600"
               />
             </div>
 
@@ -174,7 +168,7 @@ export const BankPage: React.FC = () => {
               <select
                 value={selectedMode}
                 onChange={(e) => setSelectedMode(e.target.value as any)}
-                className="w-full p-2 rounded-xl bg-neutral-900 border border-neutral-800 text-xs text-neutral-300"
+                className="w-full py-2 px-3 rounded-xl bg-zinc-950 border border-zinc-850 text-xs text-zinc-300 focus:outline-hidden"
               >
                 <option value="all">Semua Mode</option>
                 <option value="umum">Mode Umum</option>
@@ -186,7 +180,7 @@ export const BankPage: React.FC = () => {
               <select
                 value={selectedProvenance}
                 onChange={(e) => setSelectedProvenance(e.target.value)}
-                className="w-full p-2 rounded-xl bg-neutral-900 border border-neutral-800 text-xs text-neutral-300"
+                className="w-full py-2 px-3 rounded-xl bg-zinc-950 border border-zinc-850 text-xs text-zinc-300 focus:outline-hidden"
               >
                 <option value="all">Semua Provenance</option>
                 <option value="A">Label A (Ulasan Viral)</option>
@@ -203,52 +197,52 @@ export const BankPage: React.FC = () => {
             {filteredCards.map((card, idx) => (
               <div
                 key={`${card.id}_${idx}`}
-                className="p-5 rounded-2xl bg-neutral-900/80 border border-neutral-800 space-y-3 shadow-xs hover:border-neutral-700 transition"
+                className="p-5 rounded-2xl border border-zinc-900 bg-zinc-900/20 hover:border-zinc-800 transition space-y-3"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-black px-2 py-0.5 rounded bg-neutral-800 text-neutral-300">
+                    <span className="text-xs font-mono px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 font-semibold">
                       {card.id}
                     </span>
-                    <h3 className="text-sm font-bold text-white">{card.niche}</h3>
+                    <h3 className="text-sm font-semibold text-zinc-100">{card.niche}</h3>
                   </div>
                   <ProvenanceBadge provenance={card.provenance} />
                 </div>
 
-                <div className="space-y-1 text-xs">
-                  <p className="text-neutral-300">
-                    <strong className="text-neutral-400">Format:</strong> {card.format}
+                <div className="space-y-1 text-xs text-zinc-300">
+                  <p>
+                    <strong className="text-zinc-500 font-normal">Format:</strong> {card.format}
                   </p>
-                  <p className="text-neutral-300">
-                    <strong className="text-neutral-400">Struktur:</strong> {card.struktur}
+                  <p>
+                    <strong className="text-zinc-500 font-normal">Struktur:</strong> {card.struktur}
                   </p>
-                  <p className="text-neutral-300">
-                    <strong className="text-neutral-400">Emosi:</strong> {card.emosi}
+                  <p>
+                    <strong className="text-zinc-500 font-normal">Emosi:</strong> {card.emosi}
                   </p>
-                  <p className="text-neutral-300">
-                    <strong className="text-neutral-400">Sinyal Algoritma:</strong> {card.sinyal_algoritma}
+                  <p>
+                    <strong className="text-zinc-500 font-normal">Sinyal:</strong> {card.sinyal_algoritma}
                   </p>
                 </div>
 
                 {/* Hooks List */}
-                <div className="space-y-1.5 pt-2 border-t border-neutral-800/80">
-                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">
+                <div className="space-y-1.5 pt-2 border-t border-zinc-900">
+                  <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider block">
                     Pola Hook & Slot ({card.hooks.length}):
                   </span>
-                  <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
                     {card.hooks.map((h, hIdx) => (
                       <div
                         key={`${h.id}_${hIdx}`}
-                        className="p-2.5 rounded-xl bg-neutral-950 border border-neutral-800/80 text-[11px] space-y-1"
+                        className="p-2.5 rounded-xl bg-zinc-950 border border-zinc-850/80 text-[11px] space-y-1"
                       >
-                        <div className="flex items-center justify-between text-neutral-400">
-                          <span className="font-semibold text-indigo-400">{h.id}</span>
-                          <span className="text-[9px] px-1 py-0.2 rounded bg-neutral-900 text-neutral-400">
+                        <div className="flex items-center justify-between text-zinc-400">
+                          <span className="font-mono text-zinc-300 font-medium">{h.id}</span>
+                          <span className="text-[9px] px-1 rounded bg-zinc-900 text-zinc-400">
                             Prov: {h.provenance}
                           </span>
                         </div>
-                        <p className="text-neutral-300 font-mono text-[10px]">{h.pola_slot}</p>
-                        <p className="text-neutral-500 italic text-[10px]">Contoh: "{h.contoh_asli}"</p>
+                        <p className="text-zinc-300 font-mono text-[10px]">{h.pola_slot}</p>
+                        <p className="text-zinc-500 italic text-[10px]">Contoh: "{h.contoh_asli}"</p>
                       </div>
                     ))}
                   </div>
@@ -262,7 +256,7 @@ export const BankPage: React.FC = () => {
       {/* Tab: Rules */}
       {activeTab === "rules" && (
         <div className="space-y-3">
-          <p className="text-xs text-neutral-400 mb-2">
+          <p className="text-xs text-zinc-400 mb-2">
             Kaidah algoritma Threads yang dirangkum dari pengumuman resmi Mosseri (R), observasi praktisi (P), dan hipotesis pengujian (H).
           </p>
 
@@ -270,23 +264,15 @@ export const BankPage: React.FC = () => {
             {ALGORITHM_RULES.map((rule, idx) => (
               <div
                 key={`${rule.id}_${idx}`}
-                className="p-4 rounded-2xl bg-neutral-900/80 border border-neutral-800 space-y-1.5 text-xs"
+                className="p-4 rounded-2xl border border-zinc-900 bg-zinc-900/20 space-y-1.5 text-xs"
               >
                 <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-white">{rule.title}</h4>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
-                      rule.confidence === "R"
-                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                        : rule.confidence === "P"
-                        ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                        : "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                    }`}
-                  >
+                  <h4 className="font-semibold text-zinc-100">{rule.title}</h4>
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-zinc-900 border border-zinc-800 text-zinc-300">
                     Tingkat {rule.confidence}
                   </span>
                 </div>
-                <p className="text-neutral-400 leading-relaxed text-[11px]">{rule.description}</p>
+                <p className="text-zinc-400 leading-relaxed text-[11px]">{rule.description}</p>
               </div>
             ))}
           </div>
@@ -296,12 +282,12 @@ export const BankPage: React.FC = () => {
       {/* Tab: Pending Queue */}
       {activeTab === "pending" && (
         <div className="space-y-4">
-          <p className="text-xs text-neutral-400">
+          <p className="text-xs text-zinc-400">
             Draf kartu hasil ulasan utas viral atau kurasi manual yang membutuhkan persetujuan sebelum aktif digunakan dalam Idea Fusion.
           </p>
 
           {pendingList.length === 0 ? (
-            <div className="p-8 rounded-2xl border-2 border-dashed border-neutral-800 text-center text-neutral-500 text-xs">
+            <div className="p-8 rounded-2xl border border-zinc-900 bg-zinc-950/40 text-center text-zinc-500 text-xs">
               Tidak ada kartu pending. Analisis utas viral di halaman Ulas Utas untuk menambahkan draf baru.
             </div>
           ) : (
@@ -309,29 +295,29 @@ export const BankPage: React.FC = () => {
               {pendingList.map((card, idx) => (
                 <div
                   key={`${card.id}_${idx}`}
-                  className="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-3 text-xs"
+                  className="p-4 rounded-2xl border border-zinc-900 bg-zinc-900/20 space-y-3 text-xs"
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-[10px] text-amber-400 font-bold uppercase block">Pending Review</span>
-                      <h4 className="text-sm font-bold text-white">{card.niche}</h4>
+                      <span className="text-[10px] text-zinc-500 uppercase block font-mono">Pending Review</span>
+                      <h4 className="text-sm font-semibold text-zinc-100">{card.niche}</h4>
                     </div>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleRejectPending(card.id)}
-                        className="px-3 py-1.5 rounded-xl bg-neutral-800 text-neutral-300 hover:text-white"
+                        className="px-3 py-1.5 rounded-lg bg-zinc-900 text-zinc-400 hover:text-white text-xs cursor-pointer"
                       >
                         Tolak
                       </button>
                       <button
                         onClick={() => handleApprovePending(card.id)}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-500"
+                        className="px-3 py-1.5 rounded-lg bg-zinc-100 text-zinc-950 font-semibold hover:bg-white text-xs cursor-pointer"
                       >
                         Setujui Kartu
                       </button>
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-neutral-950 text-neutral-300 text-[11px] space-y-1">
+                  <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-850 text-zinc-300 text-[11px] space-y-1">
                     <p><strong>Format:</strong> {card.format}</p>
                     <p><strong>Pola Hook:</strong> {card.hooks[0]?.pola_slot}</p>
                     <p><strong>Pelajaran:</strong> {card.pelajaran}</p>

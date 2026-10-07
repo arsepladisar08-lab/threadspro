@@ -5,7 +5,7 @@
  */
 
 import { get, set, del, keys } from "idb-keyval";
-import { UserProfile, GenerationOutput, CalendarDayItem, MetricEntry, CardUserWeight, ReferenceCard } from "../../types";
+import { UserProfile, GenerationOutput, CalendarDayItem, MetricEntry, CardUserWeight, ReferenceCard, ScheduledThreadItem, ScheduledStatus } from "../../types";
 
 const STORAGE_KEYS = {
   PROFILE: "autothreads_profile",
@@ -22,6 +22,7 @@ const STORAGE_KEYS = {
   THREADS_APP_CREDS: "autothreads_threads_app_creds",
   API_PROFILES: "autothreads_api_profiles",
   ONBOARDING_COMPLETED: "autothreads_onboarding_completed",
+  SCHEDULED_QUEUE: "autothreads_scheduled_queue",
 };
 
 export interface ApiProfile {
@@ -360,6 +361,89 @@ export const storage = {
     }
   },
 
+  // ==================== ANTRIAN JADWAL (AUTO-SCHEDULER) ====================
+  async getScheduledQueue(): Promise<ScheduledThreadItem[]> {
+    let list: ScheduledThreadItem[] = [];
+    try {
+      list = (await get(STORAGE_KEYS.SCHEDULED_QUEUE)) || [];
+    } catch {
+      const local = safeGetLocal(STORAGE_KEYS.SCHEDULED_QUEUE);
+      if (local) {
+        try {
+          list = JSON.parse(local);
+        } catch {}
+      }
+    }
+    return Array.isArray(list) ? list : [];
+  },
+
+  async saveScheduledThread(item: ScheduledThreadItem): Promise<void> {
+    const current = await this.getScheduledQueue();
+    const existingIdx = current.findIndex((q) => q.id === item.id);
+    let updated: ScheduledThreadItem[];
+    if (existingIdx >= 0) {
+      updated = [...current];
+      updated[existingIdx] = { ...updated[existingIdx], ...item };
+    } else {
+      updated = [item, ...current];
+    }
+
+    try {
+      await set(STORAGE_KEYS.SCHEDULED_QUEUE, updated);
+    } catch {
+      safeSetLocal(STORAGE_KEYS.SCHEDULED_QUEUE, JSON.stringify(updated));
+    }
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("autothreads_queue_updated", { detail: updated }));
+    }
+  },
+
+  async cancelScheduledThread(id: string): Promise<void> {
+    await this.updateScheduledStatus(id, "cancelled");
+  },
+
+  async removeScheduledThread(id: string): Promise<void> {
+    const current = await this.getScheduledQueue();
+    const updated = current.filter((q) => q.id !== id);
+    try {
+      await set(STORAGE_KEYS.SCHEDULED_QUEUE, updated);
+    } catch {
+      safeSetLocal(STORAGE_KEYS.SCHEDULED_QUEUE, JSON.stringify(updated));
+    }
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("autothreads_queue_updated", { detail: updated }));
+    }
+  },
+
+  async updateScheduledStatus(
+    id: string,
+    status: ScheduledStatus,
+    updates?: Partial<ScheduledThreadItem>
+  ): Promise<void> {
+    const current = await this.getScheduledQueue();
+    const updated = current.map((item) => {
+      if (item.id === id) {
+        return {
+          ...item,
+          status,
+          ...(updates || {}),
+        };
+      }
+      return item;
+    });
+
+    try {
+      await set(STORAGE_KEYS.SCHEDULED_QUEUE, updated);
+    } catch {
+      safeSetLocal(STORAGE_KEYS.SCHEDULED_QUEUE, JSON.stringify(updated));
+    }
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("autothreads_queue_updated", { detail: updated }));
+    }
+  },
+
   async getThreadsPosts(): Promise<any[]> {
     let list: any[] = [];
     try {
@@ -488,6 +572,7 @@ export const storage = {
     const metrics = await this.getMetrics();
     const weights = await this.getCardWeights();
     const customCards = await this.getCustomCards();
+    const scheduledQueue = await this.getScheduledQueue();
 
     return JSON.stringify(
       {
@@ -499,6 +584,7 @@ export const storage = {
         metrics,
         weights,
         customCards,
+        scheduledQueue,
       },
       null,
       2
@@ -515,6 +601,7 @@ export const storage = {
       if (parsed.metrics) await set(STORAGE_KEYS.METRICS, parsed.metrics);
       if (parsed.weights) await set(STORAGE_KEYS.CARD_WEIGHTS, parsed.weights);
       if (parsed.customCards) await set(STORAGE_KEYS.CUSTOM_CARDS, parsed.customCards);
+      if (parsed.scheduledQueue) await set(STORAGE_KEYS.SCHEDULED_QUEUE, parsed.scheduledQueue);
       return true;
     } catch (e) {
       console.error("Gagal mengimpor data:", e);

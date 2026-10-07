@@ -229,3 +229,19 @@ export interface CardUserWeight {
   medianRtl: number | null;
   lastUpdated: number;
 }
+
+export type TimeSlotType = "pagi" | "siang" | "malam" | "custom";
+export type ScheduledStatus = "queued" | "publishing" | "published" | "failed" | "cancelled";
+
+export interface ScheduledThreadItem {
+  id: string;
+  variant: VariantOutput;
+  scheduledTimeISO: string; // Target waktu eksekusi ISO (WIB UTC+7)
+  timeSlot: TimeSlotType;
+  status: ScheduledStatus;
+  publishedAt?: number;
+  permalink?: string;
+  errorMessage?: string;
+  retryCount: number; // Maksimal 3x percobaan
+  createdAt?: number;
+}

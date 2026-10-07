@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Search, Sparkles, RefreshCw, PlusCircle, CheckCircle2, BookmarkPlus, ArrowRight, Lightbulb } from "lucide-react";
+import { Search, Sparkles, RefreshCw, CheckCircle2, BookmarkPlus, Lightbulb } from "lucide-react";
 import { generateJSON } from "../services/ai";
 import { ViralThreadReview, ReferenceCard } from "../types";
 import { storage } from "../lib/storage";
@@ -60,7 +60,7 @@ export const ReviewPage: React.FC = () => {
           slot_list: [],
         },
       ],
-      status: "pending", // Masuk antrean pending persetujuan di Bank Referensi
+      status: "pending",
     };
 
     await storage.saveCustomCard(newCard);
@@ -68,163 +68,160 @@ export const ReviewPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-3 sm:px-5 md:px-6 py-6 sm:py-8 pb-24 space-y-6">
-      {/* Header */}
-      <div>
-        <div className="flex items-center gap-2">
-          <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-            <Search className="w-5 h-5" />
-          </span>
-          <h1 className="text-xl sm:text-2xl font-black text-white">Ulas Utas Viral (Reverse Engineer)</h1>
-        </div>
-        <p className="text-xs sm:text-sm text-neutral-400 mt-1">
-          Bedah kerangka pola dan psikologi di balik utas orang lain yang ramai, tanpa menyalin satu kalimat pun.
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 pb-28 space-y-6">
+      {/* Calm Header */}
+      <div className="border-b border-zinc-900 pb-5">
+        <h1 className="text-xl font-semibold text-zinc-100 tracking-tight">
+          Ulas Utas Viral (Reverse Engineer)
+        </h1>
+        <p className="text-xs text-zinc-400 mt-1">
+          Bedah kerangka pola dan psikologi di balik utas orang lain yang ramai, tanpa menyalin kalimat aslinya.
         </p>
       </div>
 
       {errorMessage && (
-        <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-500/30 flex items-center justify-between gap-3 text-xs text-rose-300">
+        <div className="p-3.5 rounded-xl bg-zinc-900 border border-rose-500/30 flex items-center justify-between text-xs text-rose-300">
           <span>{errorMessage}</span>
           <button
             type="button"
             onClick={() => setErrorMessage(null)}
-            className="p-1 text-rose-400 hover:text-white transition cursor-pointer"
+            className="text-zinc-400 hover:text-white"
           >
             ✕
           </button>
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Input Column */}
-        <div className="lg:col-span-5 space-y-4">
-          <form onSubmit={handleAnalyze} className="p-5 rounded-2xl bg-neutral-900/60 border border-neutral-800 space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-neutral-200 mb-1.5">
-                Tempel Teks Utas Viral:
+        <div className="lg:col-span-5 space-y-5">
+          <form onSubmit={handleAnalyze} className="p-5 rounded-2xl border border-zinc-900 bg-zinc-900/20 space-y-4">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-zinc-300">
+                Teks Utas untuk Dibedah:
               </label>
               <textarea
                 rows={6}
                 required
                 value={threadText}
                 onChange={(e) => setThreadText(e.target.value)}
-                placeholder="Tempel keseluruhan post dari utas yang ramai di Threads... (minimal 1 post pembuka)"
-                className="w-full p-3 rounded-xl bg-neutral-950 border border-neutral-800 text-xs text-white placeholder-neutral-500 focus:outline-hidden focus:border-indigo-500 leading-relaxed"
+                placeholder="Tempel keseluruhan post dari utas orang lain yang ramai di Threads..."
+                className="w-full p-3 rounded-xl bg-zinc-950 border border-zinc-850 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-hidden focus:border-zinc-600 leading-relaxed transition"
               />
             </div>
 
             <button
               type="submit"
               disabled={isAnalyzing || !threadText.trim()}
-              className="w-full py-3 px-4 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 transition disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 transition-all disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer shadow-xs"
             >
               {isAnalyzing ? (
                 <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Menganalisis Psikologi & Algoritma...</span>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-zinc-700" />
+                  <span>Menganalisis Pola & Psikologi...</span>
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>Bedah Pola & Buat Draf Kartu</span>
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Bedah Kerangka Pola</span>
                 </>
               )}
             </button>
           </form>
 
-          {/* Pedoman Etika */}
-          <div className="p-4 rounded-2xl bg-neutral-900/40 border border-neutral-800/80 space-y-2 text-xs">
-            <div className="flex items-center gap-1.5 text-neutral-300 font-semibold">
-              <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
-              <span>Etika Reverse-Engineering:</span>
+          {/* Ethics Note */}
+          <div className="p-4 rounded-2xl border border-zinc-900 bg-zinc-950/40 space-y-1.5 text-xs">
+            <div className="flex items-center gap-1.5 text-zinc-300 font-medium">
+              <Lightbulb className="w-3.5 h-3.5 text-zinc-400" />
+              <span>Etika Pola vs Plagiarisme</span>
             </div>
-            <p className="text-[11px] text-neutral-400 leading-relaxed">
-              Tujuan fitur ini adalah meminjam <em>rumus abstrak</em> (struktur argumen, pemicu emosi), bukan mencuri ide atau kalimat. Kartu yang tersimpan akan masuk antrean review untuk divalidasi kebersihannya.
+            <p className="text-[11px] text-zinc-400 leading-relaxed">
+              Tujuan fitur ini adalah meminjam <em>rumus abstrak</em> (struktur argumen, pemicu rasa ingin tahu), bukan menyalin teks. Pola yang disimpan akan membantu Anda merangkai konten original dengan suara otentik sendiri.
             </p>
           </div>
         </div>
 
-        {/* Output Breakdown Column */}
+        {/* Output Column */}
         <div className="lg:col-span-7 space-y-4">
           {reviewResult ? (
-            <div className="p-5 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-4 shadow-sm">
-              <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
-                <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">
+            <div className="p-5 rounded-2xl border border-zinc-900 bg-zinc-950/60 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-zinc-900 text-xs">
+                <span className="font-medium text-zinc-200">
                   Niche: {reviewResult.niche}
                 </span>
-                <span className="text-xs text-neutral-400">
-                  {reviewResult.structure.postCount} Post {reviewResult.structure.visualUsed ? "• Ada Visual" : ""}
+                <span className="text-zinc-500 font-mono text-[11px]">
+                  {reviewResult.structure.postCount} Post {reviewResult.structure.visualUsed ? "· Ada Visual" : ""}
                 </span>
               </div>
 
               {/* Hook Analysis */}
-              <div className="p-3.5 rounded-xl bg-neutral-950 border border-neutral-800 space-y-1.5 text-xs">
-                <span className="font-bold text-white block">Analisis Hook Pembuka:</span>
-                <p className="italic text-neutral-300">"{reviewResult.hookAnalysis.hookText}"</p>
-                <p className="text-neutral-400 text-[11px] pt-1">
-                  <strong>Kenapa Efektif:</strong> {reviewResult.hookAnalysis.whyEffective}
+              <div className="p-3.5 rounded-xl bg-zinc-900/40 border border-zinc-850 space-y-1.5 text-xs">
+                <span className="font-medium text-zinc-300 block text-[11px]">Hook Pembuka:</span>
+                <p className="italic text-zinc-200">"{reviewResult.hookAnalysis.hookText}"</p>
+                <p className="text-zinc-400 text-[11px] pt-1 leading-relaxed">
+                  <strong className="text-zinc-300">Daya Tarik:</strong> {reviewResult.hookAnalysis.whyEffective}
                 </p>
               </div>
 
-              {/* Grid 2 Kolom: Emosi & Sinyal */}
+              {/* Grid 2 Kolom */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div className="p-3 rounded-xl bg-neutral-950 border border-neutral-800 space-y-1">
-                  <span className="font-bold text-neutral-300 block">Pemicu Emosi Utama:</span>
-                  <p className="text-[11px] text-neutral-400">{reviewResult.emotionalTrigger}</p>
+                <div className="p-3 rounded-xl bg-zinc-900/40 border border-zinc-850 space-y-1">
+                  <span className="font-medium text-zinc-400 text-[11px] block">Pemicu Emosi:</span>
+                  <p className="text-zinc-300 text-[11px]">{reviewResult.emotionalTrigger}</p>
                 </div>
-                <div className="p-3 rounded-xl bg-neutral-950 border border-neutral-800 space-y-1">
-                  <span className="font-bold text-neutral-300 block">Sinyal Algoritma:</span>
-                  <p className="text-[11px] text-neutral-400">{reviewResult.algorithmSignal}</p>
+                <div className="p-3 rounded-xl bg-zinc-900/40 border border-zinc-850 space-y-1">
+                  <span className="font-medium text-zinc-400 text-[11px] block">Sinyal Algoritma:</span>
+                  <p className="text-zinc-300 text-[11px]">{reviewResult.algorithmSignal}</p>
                 </div>
               </div>
 
-              {/* Pola Komentar Warga */}
-              <div className="p-3 rounded-xl bg-neutral-950 border border-neutral-800 text-xs space-y-1">
-                <span className="font-bold text-neutral-300 block">Pola Komentar Warga:</span>
-                <p className="text-[11px] text-neutral-400">{reviewResult.commentPattern}</p>
+              {/* Pola Komentar */}
+              <div className="p-3 rounded-xl bg-zinc-900/40 border border-zinc-850 text-xs space-y-1">
+                <span className="font-medium text-zinc-400 text-[11px] block">Reaksi Pembaca:</span>
+                <p className="text-zinc-300 text-[11px]">{reviewResult.commentPattern}</p>
               </div>
 
               {/* Framework Lesson */}
-              <div className="p-3.5 rounded-xl bg-indigo-950/20 border border-indigo-500/20 text-xs space-y-1.5">
-                <span className="font-bold text-indigo-300 block">Pelajaran Kerangka yang Bisa Ditiru:</span>
-                <p className="text-[11px] text-neutral-200 leading-relaxed">{reviewResult.frameworkLesson}</p>
+              <div className="p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800 text-xs space-y-1">
+                <span className="font-medium text-zinc-200 text-[11px] block">Rumus yang Bisa Diterapkan:</span>
+                <p className="text-zinc-300 text-[11px] leading-relaxed">{reviewResult.frameworkLesson}</p>
               </div>
 
-              {/* Save to Bank Draft */}
-              <div className="pt-2 border-t border-neutral-800 flex items-center justify-between">
-                <span className="text-[11px] text-neutral-400">
-                  {draftSaved ? "Tersimpan di antrean persetujuan Bank." : "Ingin menyimpan pola ini ke Bank?"}
+              {/* Save to Bank */}
+              <div className="pt-2 border-t border-zinc-900 flex items-center justify-between text-xs">
+                <span className="text-[11px] text-zinc-500">
+                  {draftSaved ? "Tersimpan di Bank Referensi." : "Simpan pola abstrak ini ke koleksi?"}
                 </span>
 
                 <button
                   type="button"
                   onClick={handleSaveToBank}
                   disabled={draftSaved}
-                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition ${
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
                     draftSaved
-                      ? "bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 cursor-default"
-                      : "bg-neutral-800 hover:bg-neutral-700 text-white cursor-pointer active:scale-95"
+                      ? "bg-zinc-900 border border-emerald-500/30 text-emerald-400 cursor-default"
+                      : "bg-zinc-100 hover:bg-white text-zinc-950 font-semibold"
                   }`}
                 >
                   {draftSaved ? (
                     <>
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Masuk Antrean Pending</span>
+                      <span>Tersimpan</span>
                     </>
                   ) : (
                     <>
-                      <BookmarkPlus className="w-3.5 h-3.5 text-indigo-400" />
-                      <span>Simpan Draf ke Bank</span>
+                      <BookmarkPlus className="w-3.5 h-3.5 text-zinc-600" />
+                      <span>Simpan ke Bank</span>
                     </>
                   )}
                 </button>
               </div>
             </div>
           ) : (
-            <div className="h-full min-h-[300px] rounded-2xl border-2 border-dashed border-neutral-800 flex flex-col items-center justify-center p-6 text-center text-neutral-400 space-y-2">
-              <Search className="w-8 h-8 text-neutral-600" />
-              <p className="text-xs max-w-xs">
-                Tempel teks utas di sebelah kiri untuk melihat anatomi psikologi dan membongkar rumus viralitasnya.
+            <div className="min-h-[280px] rounded-2xl border border-zinc-900 bg-zinc-900/10 flex flex-col items-center justify-center p-8 text-center text-zinc-500 space-y-2">
+              <Search className="w-8 h-8 text-zinc-700" />
+              <p className="text-xs text-zinc-400 max-w-xs leading-relaxed">
+                Tempel draf atau postingan di sebelah kiri untuk melihat pembagian struktur, hook, dan emosi audiens.
               </p>
             </div>
           )}

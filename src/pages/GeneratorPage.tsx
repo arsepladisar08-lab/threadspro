@@ -4,39 +4,27 @@ import { storage } from "../lib/storage";
 import { retrieveTopPatterns } from "../lib/retrieval";
 import { auditVariant, autoFixVariant } from "../lib/guard";
 import { generateJSON, generateFactsAssistance } from "../services/ai";
-import { ProvenanceBadge } from "../components/ProvenanceBadge";
 import { PublishModal } from "../components/PublishModal";
 import { VisualCardGenerator, VisualTheme, AspectRatio } from "../components/VisualCardGenerator";
 import {
   Sparkles,
-  Target,
-  FileText,
   Copy,
   Check,
   Send,
   Wand2,
-  AlertTriangle,
   AlertCircle,
-  ExternalLink,
   Clock,
-  ArrowRight,
   RefreshCw,
-  SlidersHorizontal,
-  ChevronDown,
-  ChevronUp,
   Tag,
-  Lightbulb,
   Upload,
   Paperclip,
-  Trash2,
-  Edit3,
   X,
   Save,
   Palette,
-  Layers,
-  Image as ImageIcon,
+  Edit3,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
-import { Link } from "react-router-dom";
 
 export interface UploadedDocFile {
   name: string;
@@ -60,10 +48,9 @@ export const GeneratorPage: React.FC = () => {
   const [activeVariantIdx, setActiveVariantIdx] = useState(0);
   const [copiedPostIdx, setCopiedPostIdx] = useState<number | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
-  const [postedSuccess, setPostedSuccess] = useState(false);
   const [publishModalVariant, setPublishModalVariant] = useState<VariantOutput | null>(null);
   const [visualGeneratorVariant, setVisualGeneratorVariant] = useState<VariantOutput | null>(null);
-  const [showTrace, setShowTrace] = useState(true);
+  const [showTrace, setShowTrace] = useState(false);
 
   // File Upload State
   const [uploadedFiles, setUploadedFiles] = useState<UploadedDocFile[]>([]);
@@ -84,7 +71,6 @@ export const GeneratorPage: React.FC = () => {
       if (p) {
         setProfile(p);
       } else {
-        // Profil default jika user belum isi onboarding
         const defaultProf: UserProfile = {
           id: "default",
           niche: "Keuangan",
@@ -97,7 +83,6 @@ export const GeneratorPage: React.FC = () => {
       }
     });
 
-    // Muat riwayat generasi terakhir jika ada
     storage.getGenerations().then((gens) => {
       if (gens && gens.length > 0) {
         setResult(gens[0]);
@@ -107,7 +92,7 @@ export const GeneratorPage: React.FC = () => {
 
   const handleAiAssistFacts = async () => {
     if (!rawIdea.trim() && uploadedFiles.length === 0) {
-      setErrorMessage("Silakan isi '1. Ide Kasar' atau unggah file terlebih dahulu agar AI dapat meracik fakta & angka yang tepat.");
+      setErrorMessage("Tulis ide kasar atau lampirkan file terlebih dahulu.");
       return;
     }
     setIsAssistingFacts(true);
@@ -121,10 +106,10 @@ export const GeneratorPage: React.FC = () => {
         profile,
       });
       setRealFacts(aiFacts);
-      setGenerationNotice("✨ Fakta, angka realistis, dan ulasan cerita berhasil diracik oleh AI!");
-      setTimeout(() => setGenerationNotice(null), 4000);
+      setGenerationNotice("Fakta dan angka realistis berhasil diracik oleh AI.");
+      setTimeout(() => setGenerationNotice(null), 3000);
     } catch (err: any) {
-      setErrorMessage(err.message || "Gagal meracik fakta dengan AI.");
+      setErrorMessage(err.message || "Gagal meracik fakta.");
     } finally {
       setIsAssistingFacts(false);
     }
@@ -149,14 +134,12 @@ export const GeneratorPage: React.FC = () => {
         const newFileInfo: UploadedDocFile = {
           name: file.name,
           size: formatBytes(file.size),
-          content: `[Catatan visual / tangkapan layar: ${file.name}]`,
+          content: `[Catatan visual: ${file.name}]`,
           previewUrl: dataUrl,
           type: "image",
         };
         setUploadedFiles((prev) => [newFileInfo, ...prev]);
         setIsReadingFile(false);
-        setGenerationNotice(`File gambar ${file.name} berhasil diunggah.`);
-        setTimeout(() => setGenerationNotice(null), 3000);
       };
       reader.readAsDataURL(file);
     } else {
@@ -171,31 +154,15 @@ export const GeneratorPage: React.FC = () => {
         };
         setUploadedFiles((prev) => [newFileInfo, ...prev]);
         setIsReadingFile(false);
-        setGenerationNotice(`File teks ${file.name} (${formatBytes(file.size)}) berhasil diunggah.`);
-        setTimeout(() => setGenerationNotice(null), 3000);
       };
       reader.onerror = () => {
         setIsReadingFile(false);
-        setErrorMessage("Gagal membaca file yang diunggah.");
+        setErrorMessage("Gagal membaca file.");
       };
       reader.readAsText(file);
     }
 
     if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const handleUseFileForIdea = (file: UploadedDocFile) => {
-    const textToAdd = file.type === "image" ? `[Catatan visual: ${file.name}]` : file.content;
-    setRawIdea((prev) => (prev ? `${prev}\n\n${textToAdd}` : textToAdd));
-    setGenerationNotice(`Konten dari ${file.name} telah dimasukkan ke Ide Kasar.`);
-    setTimeout(() => setGenerationNotice(null), 3000);
-  };
-
-  const handleUseFileForFacts = (file: UploadedDocFile) => {
-    const textToAdd = file.type === "image" ? `[Data visual: ${file.name}]` : file.content;
-    setRealFacts((prev) => (prev ? `${prev}\n\n${textToAdd}` : textToAdd));
-    setGenerationNotice(`Konten dari ${file.name} telah dimasukkan ke Fakta/Angka.`);
-    setTimeout(() => setGenerationNotice(null), 3000);
   };
 
   const handleRemoveFile = (index: number) => {
@@ -207,7 +174,7 @@ export const GeneratorPage: React.FC = () => {
     const updatedVariants = [...result.variants];
     const current = { ...updatedVariants[activeVariantIdx] };
     const updatedPosts = [...current.posts];
-    
+
     updatedPosts[pIdx] = {
       ...updatedPosts[pIdx],
       text: editingPostText,
@@ -224,8 +191,8 @@ export const GeneratorPage: React.FC = () => {
     setResult(updatedResult);
     await storage.saveGeneration(updatedResult);
     setEditingPostIdx(null);
-    setEditNoticeToast(`Post #${pIdx + 1} berhasil disimpan!`);
-    setTimeout(() => setEditNoticeToast(null), 2500);
+    setEditNoticeToast(`Post #${pIdx + 1} disimpan`);
+    setTimeout(() => setEditNoticeToast(null), 2000);
   };
 
   const handleSaveReply2Edit = async () => {
@@ -246,8 +213,8 @@ export const GeneratorPage: React.FC = () => {
     setResult(updatedResult);
     await storage.saveGeneration(updatedResult);
     setIsEditingReply2(false);
-    setEditNoticeToast("Reply ke-2 berhasil disimpan!");
-    setTimeout(() => setEditNoticeToast(null), 2500);
+    setEditNoticeToast("Reply ke-2 disimpan");
+    setTimeout(() => setEditNoticeToast(null), 2000);
   };
 
   const handleSaveTopicTagEdit = async () => {
@@ -266,36 +233,8 @@ export const GeneratorPage: React.FC = () => {
     setResult(updatedResult);
     await storage.saveGeneration(updatedResult);
     setIsEditingTopicTag(false);
-    setEditNoticeToast("Topic Tag berhasil disimpan!");
-    setTimeout(() => setEditNoticeToast(null), 2500);
-  };
-
-  const handleSwitchHook = async (newHookText: string) => {
-    if (!result || !result.variants || !result.variants[activeVariantIdx]) return;
-    const updatedVariants = [...result.variants];
-    const current = { ...updatedVariants[activeVariantIdx] };
-    const updatedPosts = [...current.posts];
-    if (updatedPosts.length > 0) {
-      const oldPost1 = updatedPosts[0].text;
-      const paragraphs = oldPost1.split("\n\n");
-      const restOfPost = paragraphs.length > 1 ? "\n\n" + paragraphs.slice(1).join("\n\n") : "";
-      const combined = (newHookText + restOfPost).trim();
-      updatedPosts[0] = {
-        ...updatedPosts[0],
-        text: combined,
-        char_count: combined.length,
-      };
-      current.posts = updatedPosts;
-      updatedVariants[activeVariantIdx] = current;
-      const updatedResult: GenerationOutput = {
-        ...result,
-        variants: updatedVariants,
-      };
-      setResult(updatedResult);
-      await storage.saveGeneration(updatedResult);
-      setEditNoticeToast("Hook pembuka berhasil diterapkan ke Post #1!");
-      setTimeout(() => setEditNoticeToast(null), 2500);
-    }
+    setEditNoticeToast("Topic tag disimpan");
+    setTimeout(() => setEditNoticeToast(null), 2000);
   };
 
   const handleApplyVisualSlides = async (
@@ -315,8 +254,8 @@ export const GeneratorPage: React.FC = () => {
     };
     setResult(updatedResult);
     await storage.saveGeneration(updatedResult);
-    setEditNoticeToast(`✨ ${slidesBase64.length} Slide Visual siap diterbitkan!`);
-    setTimeout(() => setEditNoticeToast(null), 3000);
+    setEditNoticeToast(`${slidesBase64.length} slide visual diterapkan`);
+    setTimeout(() => setEditNoticeToast(null), 2500);
   };
 
   const handleGenerate = async (e: React.FormEvent) => {
@@ -326,12 +265,11 @@ export const GeneratorPage: React.FC = () => {
     setIsGenerating(true);
     setErrorMessage(null);
     setGenerationNotice(null);
-    setCurrentStep("1/4: Mengekstrak Idea DNA & Fakta Asli...");
+    setCurrentStep("Mengekstrak DNA ide & fakta...");
 
     try {
       const userNiche = profile?.niche || "Keuangan";
 
-      // Kumpulkan konteks dari file upload jika ada
       let fileContext = "";
       if (uploadedFiles.length > 0) {
         fileContext = uploadedFiles
@@ -344,7 +282,6 @@ export const GeneratorPage: React.FC = () => {
         ? realFacts
         : "AI menyusun ulasan fakta terbaik berupa estimasi angka kredibel dan cerita riil yang relevan tanpa placeholder kosong.";
 
-      // Langkah 1: Ekstraksi Idea DNA
       let ideaDna: any;
       try {
         ideaDna = await generateJSON("ideaDna", {
@@ -354,7 +291,6 @@ export const GeneratorPage: React.FC = () => {
           targetGoal: goal,
         });
       } catch (e: any) {
-        console.warn("Gagal ekstraksi ideaDna via AI, menggunakan fallback struktural:", e);
         ideaDna = {
           topik_inti: rawIdea.slice(0, 50),
           sudut: "Refleksi jujur & pengalaman nyata",
@@ -365,16 +301,14 @@ export const GeneratorPage: React.FC = () => {
         };
       }
 
-      // Langkah 2: Retrieval Top-8 & Pemilihan 3 Pola Beragam
-      setCurrentStep("2/4: Mengambil Pola Teruji dari Bank Referensi...");
+      setCurrentStep("Mengambil pola teruji...");
       const topPatterns = await retrieveTopPatterns(
         `${ideaDna.topik_inti} ${ideaDna.sudut} ${rawIdea}`,
         userNiche,
         goal
       );
 
-      // Langkah 3: Fuser + Writer (Menulis 3 Varian)
-      setCurrentStep("3/4: Memfusi Pola & Menulis 3 Varian Utas...");
+      setCurrentStep("Menulis 3 variasi utas...");
       const writerInput = {
         ideaDna,
         topPatterns: topPatterns.map((p) => ({
@@ -395,21 +329,16 @@ export const GeneratorPage: React.FC = () => {
 
       const writerOutput = await generateJSON<GenerationOutput>("writer", writerInput);
 
-      // Langkah 4: Guard & Checker (Validasi Kode Murni)
-      setCurrentStep("4/4: Menjalankan Quality Guard & Audit Algoritma...");
+      setCurrentStep("Memvalidasi kepatuhan...");
       const auditedVariants = (writerOutput?.variants || []).map((variant) => {
-        // Hitung ulang karakter post murni di kode
         const fixedPosts = (variant.posts || []).map((post) => ({
           ...post,
           char_count: (post.text || "").length,
         }));
 
         let audited = { ...variant, posts: fixedPosts };
-
-        // Jalankan audit guard
         let auditRes = auditVariant(audited, rawIdea);
 
-        // Jika skor < 70, perbaiki otomatis 1x
         if (!auditRes.passed) {
           audited = autoFixVariant(audited);
           auditRes = auditVariant(audited, rawIdea);
@@ -430,9 +359,7 @@ export const GeneratorPage: React.FC = () => {
       setActiveVariantIdx(finalOutput.recommended_variant ? finalOutput.recommended_variant - 1 : 0);
     } catch (err: any) {
       console.error("Gagal generate:", err);
-      setErrorMessage(
-        err.message || "Terjadi kendala saat memproses permintaan AI. Anda juga dapat menggunakan API Key mandiri di menu API Lab."
-      );
+      setErrorMessage(err.message || "Terjadi kendala saat memproses permintaan AI.");
     } finally {
       setIsGenerating(false);
       setCurrentStep(null);
@@ -442,802 +369,470 @@ export const GeneratorPage: React.FC = () => {
   const handleCopyPost = (text: string, idx: number) => {
     navigator.clipboard.writeText(text);
     setCopiedPostIdx(idx);
-    setTimeout(() => setCopiedPostIdx(null), 2000);
+    setTimeout(() => setCopiedPostIdx(null), 1500);
   };
 
   const handleCopyAll = (variant: VariantOutput) => {
     const fullText = variant.posts
-      .map((p) => `[Post ${p.order}]\n${p.text}`)
+      .map((p) => p.text)
       .join("\n\n---\n\n");
     const withReply2 = variant.reply_2?.text
-      ? `${fullText}\n\n[Reply ke-2]\n${variant.reply_2.text}`
+      ? `${fullText}\n\n[Reply]\n${variant.reply_2.text}`
       : fullText;
 
     navigator.clipboard.writeText(withReply2);
     setCopiedAll(true);
-    setTimeout(() => setCopiedAll(false), 2000);
-  };
-
-  const handleMarkAsPosted = async (variant: VariantOutput) => {
-    // Simpan ke metrik tracker dummy awal agar langsung bisa ditrack
-    await storage.saveMetric({
-      id: `post_${Date.now()}`,
-      date: new Date().toISOString().split("T")[0],
-      topicTag: variant.topic_tag,
-      hookType: variant.template,
-      timeWIB: variant.best_time_wib,
-      views: 0,
-      likes: 0,
-      replies: 0,
-      replyDepth: 0,
-      profileVisits: 0,
-      follows: 0,
-      first60MinInteractions: 0,
-      replyToLike: null,
-      velocity60: 0,
-      engagementRate: null,
-      cardId: variant.fusion_trace.card_id,
-      notes: "Diposting dari AutoThreads Generator",
-    });
-    setPostedSuccess(true);
-    setTimeout(() => setPostedSuccess(false), 3000);
+    setTimeout(() => setCopiedAll(false), 1500);
   };
 
   const currentVariant = result?.variants?.[activeVariantIdx];
-  const auditCurrent = currentVariant ? auditVariant(currentVariant, rawIdea) : null;
 
   return (
-    <div className="max-w-6xl mx-auto px-3 sm:px-5 md:px-6 py-6 pb-24">
-      {/* Header Info */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 pb-28">
+      {/* Calm Header */}
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 border-b border-zinc-900 pb-5">
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
-            <span>Generator Utas (Idea Fusion)</span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              3 Varian Siap Post
-            </span>
+          <h1 className="text-xl font-semibold text-zinc-100 tracking-tight">
+            Generator Utas
           </h1>
-          <p className="text-xs sm:text-sm text-neutral-400 mt-1">
-            Ubah ide kasar menjadi 3 varian utas beralgoritma tinggi dalam &lt; 60 detik.
+          <p className="text-xs text-zinc-400 mt-1">
+            Fusi ide kasar menjadi draf utas berdaya jangkau tinggi tanpa sensasionalisme.
           </p>
         </div>
 
-        {/* Niche Badge */}
-        {profile && (
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-neutral-400">Niche Aktif:</span>
-            <span className="px-2.5 py-1 rounded-lg bg-neutral-900 border border-neutral-800 text-indigo-300 font-semibold">
-              {profile.niche} ({profile.tone})
-            </span>
+        {profile?.niche && (
+          <div className="text-xs text-zinc-400 font-mono">
+            Niche: <span className="text-zinc-300 font-medium">{profile.niche}</span>
           </div>
         )}
       </div>
 
-      {/* Error Alert Banner */}
+      {/* Error & Info Alerts */}
       {errorMessage && (
-        <div className="mb-6 p-4 rounded-2xl bg-rose-950/40 border border-rose-500/30 flex items-start justify-between gap-3 text-xs text-rose-300">
-          <div className="flex items-start gap-2.5">
-            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <p className="font-bold text-white">Gagal Menghasilkan Utas</p>
-              <p className="leading-relaxed text-rose-300/90">{errorMessage}</p>
-              <div className="flex items-center gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={handleGenerate}
-                  className="px-3 py-1 rounded-lg bg-rose-600/30 hover:bg-rose-600/50 border border-rose-500/40 text-white font-semibold transition cursor-pointer"
-                >
-                  Coba Lagi
-                </button>
-                <Link
-                  to="/admin/api-lab"
-                  className="inline-flex items-center gap-1 text-rose-300 hover:text-white underline font-semibold transition"
-                >
-                  <span>Atur API Key Mandiri di API Lab</span>
-                  <ExternalLink className="w-3 h-3" />
-                </Link>
-              </div>
-            </div>
+        <div className="mb-6 p-3.5 rounded-xl bg-zinc-900 border border-rose-500/30 flex items-center justify-between text-xs text-rose-300">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{errorMessage}</span>
           </div>
           <button
             type="button"
             onClick={() => setErrorMessage(null)}
-            className="p-1 text-rose-400 hover:text-white transition cursor-pointer"
+            className="text-zinc-400 hover:text-white"
           >
             ✕
           </button>
         </div>
       )}
 
-      {/* Generation Notice Banner */}
       {generationNotice && (
-        <div className="mb-6 p-3.5 rounded-2xl bg-amber-950/30 border border-amber-500/30 flex items-center justify-between gap-3 text-xs text-amber-300">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-            <span>{generationNotice}</span>
-          </div>
+        <div className="mb-6 p-3 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 flex items-center justify-between">
+          <span>{generationNotice}</span>
           <button
             type="button"
             onClick={() => setGenerationNotice(null)}
-            className="p-1 text-amber-400 hover:text-white transition cursor-pointer"
+            className="text-zinc-500 hover:text-white"
           >
             ✕
           </button>
         </div>
       )}
 
-      {/* Main Grid: Form Input (Left) & Variants Output (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Form */}
-        <div className="lg:col-span-5 space-y-4">
-          <div className="p-5 rounded-2xl bg-neutral-900/60 border border-neutral-800 space-y-4 shadow-sm">
-            <form onSubmit={handleGenerate} className="space-y-4">
-              {/* Ide Kasar */}
-              <div>
-                <label className="block text-xs font-bold text-neutral-200 mb-1.5 flex items-center justify-between">
-                  <span>1. Ide Kasar / Keresahan Warga</span>
-                  <span className="text-[10px] text-neutral-400 font-normal">Minimal 1 kalimat</span>
+      {/* Main Grid: Form (Left 5 cols) & Output (Right 7 cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Column: Quiet Writing Form */}
+        <div className="lg:col-span-5 space-y-5">
+          <form onSubmit={handleGenerate} className="rounded-2xl border border-zinc-900 bg-zinc-900/20 p-5 space-y-5">
+            {/* Field 1: Ide Kasar */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-zinc-300">
+                Ide atau Keresahan
+              </label>
+              <textarea
+                rows={4}
+                required
+                value={rawIdea}
+                onChange={(e) => setRawIdea(e.target.value)}
+                placeholder="Contoh: Akhir bulan gaji selalu habis bukan karena belanja besar, tapi bocor halus di kopi dan promo pesan antar..."
+                className="w-full p-3 rounded-xl bg-zinc-950 border border-zinc-850 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-hidden focus:border-zinc-600 leading-relaxed transition"
+              />
+            </div>
+
+            {/* Field 2: Target Konten (Segmented Pill) */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-zinc-300">
+                Fokus Sasaran
+              </label>
+              <div className="grid grid-cols-3 p-1 rounded-xl bg-zinc-950 border border-zinc-850 text-xs">
+                {(["Jangkauan", "Kedekatan", "Konversi"] as GoalType[]).map((g) => (
+                  <button
+                    type="button"
+                    key={g}
+                    onClick={() => setGoal(g)}
+                    className={`py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
+                      goal === g
+                        ? "bg-zinc-800 text-zinc-100 font-semibold shadow-xs"
+                        : "text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Field 3: Fakta & Konteks (Opsional) */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <label className="font-medium text-zinc-300">
+                  Fakta / Angka (Opsional)
                 </label>
-                <textarea
-                  rows={4}
-                  required
-                  value={rawIdea}
-                  onChange={(e) => setRawIdea(e.target.value)}
-                  placeholder="Contoh: Akhir bulan gaji selalu abis padahal gak ngerasa belanja aneh-aneh. Pas dicek ternyata boncos di jajan kopi sama promo ojol..."
-                  className="w-full p-3 rounded-xl bg-neutral-950 border border-neutral-800 text-xs text-white placeholder-neutral-500 focus:outline-hidden focus:border-indigo-500 leading-relaxed"
-                />
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleAiAssistFacts}
+                    disabled={isAssistingFacts}
+                    className="text-zinc-400 hover:text-zinc-200 transition text-[11px] flex items-center gap-1 cursor-pointer"
+                  >
+                    <Sparkles className="w-3 h-3 text-zinc-400" />
+                    <span>{isAssistingFacts ? "Meracik..." : "Bantu AI"}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isReadingFile}
+                    className="text-zinc-400 hover:text-zinc-200 transition text-[11px] flex items-center gap-1 cursor-pointer"
+                  >
+                    <Upload className="w-3 h-3" />
+                    <span>Lampirkan</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Goal / Tujuan */}
-              <div>
-                <label className="block text-xs font-bold text-neutral-200 mb-1.5 flex items-center gap-1.5">
-                  <Target className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>2. Target Utama Konten</span>
-                </label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {(["Jangkauan", "Kedekatan", "Konversi"] as GoalType[]).map((g) => (
-                    <button
-                      type="button"
-                      key={g}
-                      onClick={() => setGoal(g)}
-                      className={`p-2 rounded-xl text-xs font-semibold border transition ${
-                        goal === g
-                          ? "bg-indigo-600/20 border-indigo-500 text-white shadow-xs"
-                          : "bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700"
-                      }`}
+              {/* Hidden file input */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept=".txt,.md,.json,.csv,text/plain,image/*"
+                className="hidden"
+              />
+
+              {/* Uploaded File Chips */}
+              {uploadedFiles.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {uploadedFiles.map((file, idx) => (
+                    <div
+                      key={idx}
+                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300"
                     >
-                      {g}
-                    </button>
+                      <Paperclip className="w-2.5 h-2.5 text-zinc-500" />
+                      <span className="truncate max-w-[120px]">{file.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFile(idx)}
+                        className="text-zinc-500 hover:text-zinc-300 p-0.5"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
                   ))}
                 </div>
-                <div className="text-[10px] text-neutral-400 mt-1">
-                  {goal === "Jangkauan" && "⚡ Fokus reply cepat & velocity tinggi di 60 menit pertama"}
-                  {goal === "Kedekatan" && "💬 Fokus reply depth, curhat mendalam, & quote repost"}
-                  {goal === "Konversi" && "🎯 Fokus simpan (save), profil visit, & CTA lembut di reply 2"}
-                </div>
-              </div>
+              )}
 
-              {/* Fakta Asli / Angka (Dibantu AI & Upload File) */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-neutral-200 flex items-center gap-1.5">
-                    <span>3. Fakta / Angka / Cerita ASLI</span>
-                    <span className="text-[10px] text-emerald-400 font-medium px-1.5 py-0.2 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                      Dibantu AI • Siap Post
-                    </span>
-                  </label>
-
-                  <div className="flex items-center gap-1.5">
-                    {/* Tombol Upload File */}
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isReadingFile}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-neutral-900 hover:bg-neutral-800 text-indigo-300 border border-indigo-500/30 transition cursor-pointer"
-                      title="Unggah file catatan, dokumen teks (.txt/.md/.json) atau screenshot (.png/.jpg)"
-                    >
-                      <Upload className="w-3 h-3 text-indigo-400" />
-                      <span>{isReadingFile ? "Membaca..." : "Upload File"}</span>
-                    </button>
-
-                    {/* Tombol AI Assist Fakta & Angka */}
-                    <button
-                      type="button"
-                      onClick={handleAiAssistFacts}
-                      disabled={isAssistingFacts}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 transition cursor-pointer"
-                      title="AI bantu racik estimasi angka kredibel dan ulasan cerita terbaik siap posting"
-                    >
-                      {isAssistingFacts ? (
-                        <RefreshCw className="w-3 h-3 animate-spin text-indigo-400" />
-                      ) : (
-                        <Sparkles className="w-3 h-3 text-amber-400" />
-                      )}
-                      <span>{isAssistingFacts ? "Meracik..." : "Bantu AI Racik Fakta"}</span>
-                    </button>
-                  </div>
-                </div>
-
-                <p className="text-[11px] text-neutral-400 leading-snug">
-                  AI akan menyusun ulasan fakta terbaik, estimasi angka benchmark yang realistis, atau studi kasus otentik tanpa lagi menyematkan placeholder kosong seperti <code className="text-rose-300 line-through">[ISI: nominal]</code> sehingga utas langsung siap upload ke Threads.
-                </p>
-
-                {/* Hidden File Input */}
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  accept=".txt,.md,.json,.csv,text/plain,image/*"
-                  className="hidden"
-                />
-
-                {/* Daftar File yang Diunggah */}
-                {uploadedFiles.length > 0 && (
-                  <div className="space-y-1.5 p-2 rounded-xl bg-neutral-950/80 border border-neutral-800">
-                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block px-1">
-                      File Terlampir ({uploadedFiles.length}):
-                    </span>
-                    <div className="space-y-1">
-                      {uploadedFiles.map((file, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center justify-between gap-2 p-1.5 rounded-lg bg-neutral-900/80 border border-neutral-800/80 text-[11px]"
-                        >
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            {file.type === "image" ? (
-                              <Paperclip className="w-3 h-3 text-emerald-400 shrink-0" />
-                            ) : (
-                              <FileText className="w-3 h-3 text-indigo-400 shrink-0" />
-                            )}
-                            <span className="text-neutral-200 font-medium truncate max-w-[130px]">
-                              {file.name}
-                            </span>
-                            <span className="text-[10px] text-neutral-500">({file.size})</span>
-                          </div>
-
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => handleUseFileForFacts(file)}
-                              className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-neutral-800 hover:bg-neutral-700 text-indigo-300"
-                              title="Masukkan isi file ke Fakta/Angka"
-                            >
-                              + Ke Fakta
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleUseFileForIdea(file)}
-                              className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-neutral-800 hover:bg-neutral-700 text-neutral-300"
-                              title="Masukkan isi file ke Ide Kasar"
-                            >
-                              + Ke Ide
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveFile(idx)}
-                              className="p-1 rounded text-neutral-500 hover:text-rose-400 hover:bg-neutral-800"
-                              title="Hapus file"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <textarea
-                  rows={3}
-                  value={realFacts}
-                  onChange={(e) => setRealFacts(e.target.value)}
-                  placeholder="Ketik fakta/angka asli Anda, unggah file, atau klik 'Bantu AI Racik Fakta' agar AI memberikan angka & ulasan otentik siap posting..."
-                  className="w-full p-2.5 rounded-xl bg-neutral-950 border border-neutral-800 text-xs text-white placeholder-neutral-600 focus:outline-hidden focus:border-indigo-500 leading-relaxed"
-                />
-              </div>
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isGenerating || !rawIdea.trim()}
-                className="w-full py-3 px-4 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/25 transition disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
-              >
-                {isGenerating ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>{currentStep || "Memproses..."}</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4" />
-                    <span>Fusi Ide & Rilis 3 Varian Utas</span>
-                  </>
-                )}
-              </button>
-            </form>
-          </div>
-
-          {/* Tips Algoritma Singkat */}
-          <div className="p-4 rounded-2xl bg-neutral-900/40 border border-neutral-800/80 space-y-2 text-xs">
-            <div className="flex items-center gap-1.5 text-neutral-300 font-semibold">
-              <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
-              <span>Pedoman Algoritma Threads ID:</span>
+              <textarea
+                rows={2}
+                value={realFacts}
+                onChange={(e) => setRealFacts(e.target.value)}
+                placeholder="Angka riil, pengalaman pribadi, atau klik 'Bantu AI' untuk estimasi realistis..."
+                className="w-full p-2.5 rounded-xl bg-zinc-950 border border-zinc-850 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-hidden focus:border-zinc-600 leading-relaxed transition"
+              />
             </div>
-            <ul className="text-[11px] text-neutral-400 space-y-1 list-disc list-inside">
-              <li>1 Topic tag spesifik tanpa tanda pagar (#).</li>
-              <li>Jangan taruh link di post 1 (pindahkan ke reply ke-2).</li>
-              <li>Reply di 30 menit pertama sama berharganya dengan post baru.</li>
-            </ul>
-          </div>
+
+            {/* Primary Action Button */}
+            <button
+              type="submit"
+              disabled={isGenerating || !rawIdea.trim()}
+              className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 transition-all disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-[0.99]"
+            >
+              {isGenerating ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-zinc-700" />
+                  <span>{currentStep || "Memproses..."}</span>
+                </>
+              ) : (
+                <span>Fusi Ide & Rilis 3 Varian Utas</span>
+              )}
+            </button>
+          </form>
         </div>
 
-        {/* Right Column: Output Varian */}
+        {/* Right Column: Clean Thread Studio Preview */}
         <div className="lg:col-span-7 space-y-4">
           {result && result.variants && result.variants.length > 0 ? (
             <div className="space-y-4">
-              {/* Tab Selector Varian */}
-              <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-neutral-900 border border-neutral-800 overflow-x-auto">
+              {/* Calm Horizontal Variant Switcher */}
+              <div className="flex items-center gap-1 border-b border-zinc-900 pb-2">
                 {result.variants.map((v, idx) => {
-                  const isRecommended = result.recommended_variant === idx + 1;
                   const isActive = activeVariantIdx === idx;
                   return (
                     <button
                       key={idx}
                       type="button"
                       onClick={() => setActiveVariantIdx(idx)}
-                      className={`flex-1 min-w-[130px] py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-between gap-1.5 ${
+                      className={`px-3 py-1.5 rounded-lg text-xs transition cursor-pointer ${
                         isActive
-                          ? "bg-neutral-800 text-white shadow-sm ring-1 ring-neutral-700"
-                          : "text-neutral-400 hover:text-neutral-200"
+                          ? "bg-zinc-900 text-zinc-100 font-medium"
+                          : "text-zinc-400 hover:text-zinc-200"
                       }`}
                     >
-                      <span className="truncate">Varian {idx + 1}: {v.template.replace(/_/g, " ")}</span>
-                      {isRecommended && (
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" title="Rekomendasi Utama" />
-                      )}
+                      <span>Varian {idx + 1}</span>
+                      <span className="text-zinc-400 ml-1.5 font-normal">
+                        ({v.template.replace(/_/g, " ")})
+                      </span>
                     </button>
                   );
                 })}
               </div>
 
-              {/* Active Variant Card */}
+              {/* Active Variant Thread View */}
               {currentVariant && (
-                <div className="p-5 rounded-2xl bg-neutral-900/80 border border-neutral-800 space-y-5">
-                  {/* Top Bar: Template, Provenance, & Quality Score */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-neutral-800">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-extrabold uppercase tracking-wider text-indigo-400">
-                        {currentVariant.template.replace(/_/g, " ")}
-                      </span>
-                      <span className="text-neutral-600">•</span>
-                      <ProvenanceBadge
-                        provenance={(currentVariant.fusion_trace?.card_id ? "B" : "C") as any}
-                      />
-                    </div>
-
-                    {auditCurrent && (
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`text-xs font-bold px-2 py-0.5 rounded-full border ${
-                            auditCurrent.score >= 80
-                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                              : auditCurrent.score >= 70
-                              ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                              : "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                          }`}
-                        >
-                          Skor Algoritma: {auditCurrent.score}/100
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Fusion Trace Accordion */}
-                  <div className="rounded-xl bg-neutral-950/80 border border-neutral-800/80 p-3 text-xs space-y-1.5">
+                <div className="rounded-2xl border border-zinc-900 bg-zinc-950/60 p-5 space-y-5">
+                  {/* Subtle Jejak Fusi Link */}
+                  <div className="flex items-center justify-between text-xs text-zinc-400 border-b border-zinc-900/80 pb-3">
                     <button
                       type="button"
                       onClick={() => setShowTrace(!showTrace)}
-                      className="w-full flex items-center justify-between font-semibold text-neutral-300"
+                      className="inline-flex items-center gap-1 text-[11px] text-zinc-400 hover:text-zinc-300 transition cursor-pointer"
                     >
-                      <div className="flex items-center gap-1.5">
-                        <Wand2 className="w-3.5 h-3.5 text-indigo-400" />
-                        <span>Jejak Fusi (Transparansi Pola)</span>
-                      </div>
-                      {showTrace ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      <Wand2 className="w-3 h-3" />
+                      <span>{showTrace ? "Sembunyikan jejak fusi" : "Lihat jejak fusi pola"}</span>
+                      {showTrace ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                     </button>
-                    {showTrace && (
-                      <div className="pt-2 text-[11px] text-neutral-400 space-y-1">
-                        <p>
-                          <strong className="text-neutral-300">Pola Dipinjam:</strong>{" "}
-                          {currentVariant.fusion_trace.pola_dipinjam}
-                        </p>
-                        <p>
-                          <strong className="text-neutral-300">Transformasi Ide:</strong>{" "}
-                          {currentVariant.fusion_trace.perubahan_dari_ide_kasar}
-                        </p>
-                      </div>
-                    )}
+
+                    <div className="flex items-center gap-3 text-[11px] text-zinc-400">
+                      <span>{currentVariant.topic_tag.replace(/#/g, "")}</span>
+                      <span>·</span>
+                      <span>{currentVariant.best_time_wib}</span>
+                    </div>
                   </div>
 
-                  {/* Pilihan 3 Opsi Hook Pembuka */}
-                  {currentVariant.hooks && currentVariant.hooks.length > 0 && (
-                    <div className="p-3 rounded-xl bg-neutral-950/80 border border-neutral-800 text-xs space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-neutral-300 flex items-center gap-1.5">
-                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                          <span>Eksperimen Hook Pembuka ({currentVariant.hooks.length} Opsi):</span>
-                        </span>
-                        <span className="text-[10px] text-neutral-400">Klik untuk mengganti pembuka Post #1</span>
-                      </div>
-                      <div className="grid grid-cols-1 gap-1.5">
-                        {currentVariant.hooks.map((hText, hIdx) => {
-                          const isCurrentActiveHook = currentVariant.posts[0]?.text.startsWith(hText.slice(0, 35));
-                          return (
-                            <button
-                              key={hIdx}
-                              type="button"
-                              onClick={() => handleSwitchHook(hText)}
-                              className={`text-left p-2.5 rounded-lg text-xs transition border cursor-pointer ${
-                                isCurrentActiveHook
-                                  ? "bg-indigo-950/40 border-indigo-500/50 text-indigo-200 ring-1 ring-indigo-500/30"
-                                  : "bg-neutral-900/60 border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-700"
-                              }`}
-                            >
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
-                                  Opsi #{hIdx + 1} {hIdx === 0 ? "(Utama)" : hIdx === 1 ? "(Alternatif)" : "(Kontras)"}
-                                </span>
-                                {isCurrentActiveHook && (
-                                  <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
-                                    <Check className="w-3 h-3" /> Aktif di Post #1
-                                  </span>
-                                )}
-                              </div>
-                              <p className="line-clamp-2 italic text-[11px] text-neutral-300">"{hText}"</p>
-                            </button>
-                          );
-                        })}
-                      </div>
+                  {showTrace && currentVariant.fusion_trace && (
+                    <div className="p-3 rounded-xl bg-zinc-900/40 border border-zinc-850 text-xs text-zinc-400 space-y-1">
+                      <p>
+                        <strong className="text-zinc-300">Pola:</strong> {currentVariant.fusion_trace.pola_dipinjam}
+                      </p>
+                      <p>
+                        <strong className="text-zinc-300">Transformasi:</strong> {currentVariant.fusion_trace.perubahan_dari_ide_kasar}
+                      </p>
                     </div>
                   )}
 
-                  {/* Posts List dengan Fitur Edit Penuh */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between px-1 text-xs">
-                      <span className="font-bold text-neutral-300 flex items-center gap-1.5">
-                        <FileText className="w-3.5 h-3.5 text-indigo-400" />
-                        <span>Daftar Utas ({currentVariant.posts.length} Post) — Dapat Diedit:</span>
-                      </span>
-                      <span className="text-[10px] text-neutral-400">
-                        Klik tombol "Edit" pada post untuk mengubah teks langsung
-                      </span>
-                    </div>
+                  {/* Connected Thread Posts Stream */}
+                  <div className="space-y-4 relative">
+                    {/* Connecting line */}
+                    {currentVariant.posts.length > 1 && (
+                      <div className="absolute left-3.5 top-6 bottom-4 w-px bg-zinc-800 -z-0" />
+                    )}
 
                     {currentVariant.posts.map((post, pIdx) => {
                       const isEditing = editingPostIdx === pIdx;
                       const charCount = isEditing ? editingPostText.length : post.text.length;
-                      const isOverLimit = charCount > 500;
+
                       return (
-                        <div
-                          key={pIdx}
-                          className={`relative p-4 rounded-xl bg-neutral-950 border transition space-y-2.5 ${
-                            isEditing
-                              ? "border-indigo-500/80 ring-1 ring-indigo-500/40"
-                              : "border-neutral-800/80 hover:border-neutral-700"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between text-[11px] text-neutral-400">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-neutral-300">Post #{post.order}</span>
-                              {isEditing && (
-                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                                  Mode Edit
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className={isOverLimit ? "text-rose-400 font-bold" : "text-neutral-400"}>
-                                {charCount}/500 karakter
-                              </span>
-                              {!isEditing ? (
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setEditingPostIdx(pIdx);
-                                      setEditingPostText(post.text);
-                                    }}
-                                    className="p-1.5 rounded-lg text-neutral-400 hover:text-indigo-300 hover:bg-neutral-900 border border-transparent hover:border-neutral-800 transition flex items-center gap-1 text-[11px] cursor-pointer"
-                                    title="Edit teks post ini"
-                                  >
-                                    <Edit3 className="w-3.5 h-3.5" />
-                                    <span className="hidden sm:inline">Edit</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopyPost(post.text, pIdx)}
-                                    className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-900 border border-transparent hover:border-neutral-800 transition flex items-center gap-1 text-[11px] cursor-pointer"
-                                    title="Salin post ini"
-                                  >
-                                    {copiedPostIdx === pIdx ? (
-                                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                                    ) : (
-                                      <Copy className="w-3.5 h-3.5" />
-                                    )}
-                                    <span className="hidden sm:inline">{copiedPostIdx === pIdx ? "Tersalin" : "Salin"}</span>
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="flex items-center gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => setEditingPostIdx(null)}
-                                    className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 border border-neutral-800 flex items-center gap-1 transition cursor-pointer"
-                                  >
-                                    <X className="w-3 h-3" />
-                                    <span>Batal</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleSavePostEdit(pIdx)}
-                                    className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1 shadow-xs transition cursor-pointer"
-                                  >
-                                    <Save className="w-3 h-3" />
-                                    <span>Simpan</span>
-                                  </button>
-                                </div>
-                              )}
-                            </div>
+                        <div key={pIdx} className="relative flex gap-3 text-xs z-10">
+                          {/* Thread Node / Avatar */}
+                          <div className="w-7 h-7 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center font-bold text-[10px] text-zinc-300 shrink-0">
+                            {pIdx === 0 ? "@" : pIdx + 1}
                           </div>
 
-                          {isEditing ? (
-                            <div className="space-y-2">
+                          {/* Post Content Box */}
+                          <div className="flex-1 min-w-0 p-3.5 rounded-xl bg-zinc-900/30 border border-zinc-850/80 space-y-2">
+                            <div className="flex items-center justify-between text-[11px] text-zinc-400">
+                              <span className="font-medium text-zinc-300">
+                                {pIdx === 0 ? "Post Utama (#1)" : `Post #${post.order}`}
+                              </span>
+
+                              <div className="flex items-center gap-2">
+                                <span className={charCount > 500 ? "text-rose-400" : "text-zinc-400 font-mono"}>
+                                  {charCount}/500
+                                </span>
+                                {!isEditing ? (
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingPostIdx(pIdx);
+                                        setEditingPostText(post.text);
+                                      }}
+                                      className="p-1 text-zinc-400 hover:text-zinc-200 transition"
+                                      title="Edit post"
+                                    >
+                                      <Edit3 className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCopyPost(post.text, pIdx)}
+                                      className="p-1 text-zinc-400 hover:text-zinc-200 transition"
+                                      title="Salin post ini"
+                                    >
+                                      {copiedPostIdx === pIdx ? (
+                                        <Check className="w-3 h-3 text-emerald-400" />
+                                      ) : (
+                                        <Copy className="w-3 h-3" />
+                                      )}
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingPostIdx(null)}
+                                      className="px-2 py-0.5 rounded text-[10px] bg-zinc-800 text-zinc-300 hover:text-white"
+                                    >
+                                      Batal
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSavePostEdit(pIdx)}
+                                      className="px-2 py-0.5 rounded text-[10px] bg-zinc-100 text-zinc-950 font-semibold hover:bg-white"
+                                    >
+                                      Simpan
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {isEditing ? (
                               <textarea
                                 rows={4}
                                 value={editingPostText}
                                 onChange={(e) => setEditingPostText(e.target.value)}
-                                className="w-full p-3 rounded-lg bg-neutral-900/90 border border-neutral-700 text-xs text-white placeholder-neutral-500 focus:outline-hidden focus:border-indigo-400 leading-relaxed font-normal"
-                                placeholder="Edit teks post Threads ini..."
+                                className="w-full p-2.5 rounded-lg bg-zinc-950 border border-zinc-700 text-xs text-zinc-100 focus:outline-hidden leading-relaxed"
                                 autoFocus
                               />
-                              <div className="flex items-center justify-between text-[10px] text-neutral-400">
-                                <span>Perubahan akan langsung disimpan ke varian ini.</span>
-                                {isOverLimit && (
-                                  <span className="text-rose-400 font-semibold">
-                                    Melebihi batas Meta Threads ({charCount - 500} karakter lebih)
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          ) : (
-                            <p className="text-xs text-neutral-100 whitespace-pre-wrap leading-relaxed font-normal">
-                              {post.text}
-                            </p>
-                          )}
-
-                          {post.media_suggestion && (
-                            <div className="pt-1 text-[10px] text-neutral-400 flex items-center gap-1">
-                              <span className="px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-neutral-400">
-                                Rekomendasi Visual: {post.media_suggestion}
-                              </span>
-                            </div>
-                          )}
+                            ) : (
+                              <p className="text-xs text-zinc-200 whitespace-pre-wrap leading-relaxed">
+                                {post.text}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
-                  </div>
 
-                  {/* Reply ke-2 (Safe Link & CTA) - Bisa Diedit */}
-                  {currentVariant.reply_2 && (
-                    <div className="p-3.5 rounded-xl bg-indigo-950/20 border border-indigo-500/20 space-y-2">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-indigo-300">Reply ke-2 (Untuk Link / Tambahan)</span>
-                          <span className="text-[10px] text-indigo-400">Menjaga post #1 bebas downrank</span>
+                    {/* Connected Reply #2 */}
+                    {currentVariant.reply_2 && (
+                      <div className="relative flex gap-3 text-xs z-10 pt-1">
+                        <div className="w-7 h-7 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center font-bold text-[10px] text-zinc-400 shrink-0">
+                          R2
                         </div>
-                        {!isEditingReply2 ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsEditingReply2(true);
-                              setEditingReply2Text(currentVariant.reply_2?.text || "");
-                            }}
-                            className="p-1 px-2 rounded-lg text-neutral-400 hover:text-indigo-300 hover:bg-neutral-900/80 transition flex items-center gap-1 text-[11px] cursor-pointer"
-                            title="Edit reply ke-2"
-                          >
-                            <Edit3 className="w-3 h-3" />
-                            <span>Edit</span>
-                          </button>
-                        ) : (
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => setIsEditingReply2(false)}
-                              className="px-2 py-0.5 rounded text-[10px] font-medium bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 border border-neutral-800 flex items-center gap-1 transition cursor-pointer"
-                            >
-                              <X className="w-3 h-3" />
-                              <span>Batal</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleSaveReply2Edit}
-                              className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1 transition cursor-pointer"
-                            >
-                              <Save className="w-3 h-3" />
-                              <span>Simpan</span>
-                            </button>
-                          </div>
-                        )}
-                      </div>
 
-                      {isEditingReply2 ? (
-                        <textarea
-                          rows={3}
-                          value={editingReply2Text}
-                          onChange={(e) => setEditingReply2Text(e.target.value)}
-                          className="w-full p-2.5 rounded-lg bg-neutral-900 border border-neutral-700 text-xs text-white placeholder-neutral-500 focus:outline-hidden focus:border-indigo-400 leading-relaxed font-normal"
-                          placeholder="Edit teks reply ke-2..."
-                          autoFocus
-                        />
-                      ) : (
-                        <p className="text-xs text-neutral-300 whitespace-pre-wrap leading-relaxed">
-                          {currentVariant.reply_2.text}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Topic Tag & Waktu Rekomendasi - Topic Tag Bisa Diedit */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    <div className="p-2.5 rounded-xl bg-neutral-950 border border-neutral-800 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <Tag className="w-4 h-4 text-indigo-400 shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <span className="text-[10px] text-neutral-400 block">Topic Tag Resmi:</span>
-                          {isEditingTopicTag ? (
-                            <div className="flex items-center gap-1.5 mt-1">
-                              <input
-                                type="text"
-                                value={editingTopicTagText}
-                                onChange={(e) => setEditingTopicTagText(e.target.value)}
-                                className="px-2 py-1 rounded bg-neutral-900 border border-neutral-700 text-xs text-white focus:outline-hidden focus:border-indigo-400 w-full"
-                                placeholder="Topic Tag tanpa #"
-                                autoFocus
-                              />
-                              <button
-                                type="button"
-                                onClick={handleSaveTopicTagEdit}
-                                className="p-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer"
-                                title="Simpan Topic Tag"
-                              >
-                                <Save className="w-3 h-3" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setIsEditingTopicTag(false)}
-                                className="p-1.5 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-400 cursor-pointer"
-                                title="Batal"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="font-semibold text-white truncate block">
-                              {currentVariant.topic_tag.replace(/#/g, "")}
+                        <div className="flex-1 min-w-0 p-3.5 rounded-xl bg-zinc-900/20 border border-zinc-850/60 space-y-1.5">
+                          <div className="flex items-center justify-between text-[11px] text-zinc-400">
+                            <span className="font-medium text-zinc-400">
+                              Reply ke-2 (Tautan / CTA)
                             </span>
+                            {!isEditingReply2 ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsEditingReply2(true);
+                                  setEditingReply2Text(currentVariant.reply_2?.text || "");
+                                }}
+                                className="p-1 text-zinc-400 hover:text-zinc-200"
+                              >
+                                <Edit3 className="w-3 h-3" />
+                              </button>
+                            ) : (
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setIsEditingReply2(false)}
+                                  className="px-2 py-0.5 rounded text-[10px] bg-zinc-800 text-zinc-300"
+                                >
+                                  Batal
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleSaveReply2Edit}
+                                  className="px-2 py-0.5 rounded text-[10px] bg-zinc-100 text-zinc-950 font-semibold"
+                                >
+                                  Simpan
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          {isEditingReply2 ? (
+                            <textarea
+                              rows={2}
+                              value={editingReply2Text}
+                              onChange={(e) => setEditingReply2Text(e.target.value)}
+                              className="w-full p-2 rounded-lg bg-zinc-950 border border-zinc-700 text-xs text-zinc-100 focus:outline-hidden"
+                              autoFocus
+                            />
+                          ) : (
+                            <p className="text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                              {currentVariant.reply_2.text}
+                            </p>
                           )}
                         </div>
                       </div>
-                      {!isEditingTopicTag && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsEditingTopicTag(true);
-                            setEditingTopicTagText(currentVariant.topic_tag.replace(/#/g, ""));
-                          }}
-                          className="p-1 px-1.5 rounded text-neutral-400 hover:text-indigo-300 hover:bg-neutral-900 transition text-[10px] flex items-center gap-1 cursor-pointer"
-                          title="Ubah Topic Tag"
-                        >
-                          <Edit3 className="w-3 h-3" />
-                          <span>Ubah</span>
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="p-2.5 rounded-xl bg-neutral-950 border border-neutral-800 flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-amber-400 shrink-0" />
-                      <div>
-                        <span className="text-[10px] text-neutral-400 block">Waktu Posting Terbaik:</span>
-                        <span className="font-semibold text-white">{currentVariant.best_time_wib}</span>
-                      </div>
-                    </div>
+                    )}
                   </div>
 
-                  {/* Rencana 30 Menit Pertama */}
-                  {currentVariant.first_30_min_plan && currentVariant.first_30_min_plan.length > 0 && (
-                    <div className="p-3 rounded-xl bg-neutral-950 border border-neutral-800 text-xs space-y-1">
-                      <span className="text-[10px] uppercase font-bold text-neutral-400 block">
-                        Rencana Aksi 30 Menit Pertama (Velocity):
-                      </span>
-                      <ul className="text-[11px] text-neutral-300 list-disc list-inside space-y-0.5">
-                        {currentVariant.first_30_min_plan.map((act, aIdx) => (
-                          <li key={aIdx}>{act}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Visual Carousel Preview Strip (Jika Ada Slide Tersimpan) */}
+                  {/* Visual Slides Preview Strip (if any) */}
                   {currentVariant.visual_slides && currentVariant.visual_slides.length > 0 && (
-                    <div className="p-3.5 rounded-2xl bg-indigo-950/20 border border-indigo-500/30 space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-indigo-300 flex items-center gap-1.5">
-                          <Palette className="w-3.5 h-3.5 text-indigo-400" />
-                          <span>Slide Visual Siap Terbit ({currentVariant.visual_slides.length} Slide Carousel):</span>
+                    <div className="pt-2 border-t border-zinc-900 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="text-zinc-400">
+                          {currentVariant.visual_slides.length} Slide Carousel
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => setVisualGeneratorVariant(currentVariant)}
-                          className="text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 underline cursor-pointer"
-                        >
-                          Ubah Desain
-                        </button>
+                        <div className="flex items-center gap-1">
+                          {currentVariant.visual_slides.slice(0, 4).map((s, idx) => (
+                            <img
+                              key={idx}
+                              src={s}
+                              alt="Slide"
+                              className="w-7 h-7 rounded border border-zinc-800 object-cover"
+                            />
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                        {currentVariant.visual_slides.map((sImg, sIdx) => (
-                          <div
-                            key={sIdx}
-                            className="relative shrink-0 w-16 h-16 rounded-xl border border-indigo-500/40 overflow-hidden bg-black shadow-xs cursor-pointer hover:scale-105 transition"
-                            onClick={() => setVisualGeneratorVariant(currentVariant)}
-                            title={`Slide #${sIdx + 1} - Klik untuk edit`}
-                          >
-                            <img src={sImg} alt={`Slide ${sIdx + 1}`} className="w-full h-full object-cover" />
-                            <span className="absolute bottom-0.5 right-0.5 px-1 py-0.2 rounded text-[8px] font-bold bg-black/70 text-white">
-                              #{sIdx + 1}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Action Bar */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-neutral-800">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleCopyAll(currentVariant)}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-neutral-800 hover:bg-neutral-700 text-white transition active:scale-95 cursor-pointer"
-                      >
-                        {copiedAll ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                        <span>{copiedAll ? "Tersalin!" : "Salin Semua"}</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleMarkAsPosted(currentVariant)}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-300 transition cursor-pointer"
-                      >
-                        <Check className="w-3.5 h-3.5 text-indigo-400" />
-                        <span>{postedSuccess ? "Ditandai!" : "Tandai Diposting"}</span>
-                      </button>
-
-                      {/* Tombol Buat Slide Visual & Carousel */}
                       <button
                         type="button"
                         onClick={() => setVisualGeneratorVariant(currentVariant)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition active:scale-95 cursor-pointer ${
-                          currentVariant.visual_slides && currentVariant.visual_slides.length > 0
-                            ? "bg-indigo-950/50 border-indigo-500/50 text-indigo-300 hover:bg-indigo-900/50"
-                            : "bg-neutral-900 border-neutral-800 hover:border-neutral-700 text-neutral-300 hover:text-white"
-                        }`}
-                        title="Buat slide visual atau album carousel untuk postingan Threads ini"
+                        className="text-zinc-400 hover:text-zinc-200 underline text-[11px]"
                       >
-                        <Palette className="w-3.5 h-3.5 text-indigo-400" />
+                        Ubah Slide
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Bottom Action Bar */}
+                  <div className="pt-4 border-t border-zinc-900 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyAll(currentVariant)}
+                        className="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-850 text-zinc-300 text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
+                      >
+                        {copiedAll ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedAll ? "Tersalin" : "Salin Semua"}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setVisualGeneratorVariant(currentVariant)}
+                        className="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-850 text-zinc-300 text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Palette className="w-3.5 h-3.5" />
                         <span>
                           {currentVariant.visual_slides && currentVariant.visual_slides.length > 0
-                            ? `Visual (${currentVariant.visual_slides.length} Slide)`
-                            : "Slide Visual / Carousel"}
+                            ? `Slide (${currentVariant.visual_slides.length})`
+                            : "Buat Slide"}
                         </span>
                       </button>
                     </div>
@@ -1245,7 +840,7 @@ export const GeneratorPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setPublishModalVariant(currentVariant)}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 transition active:scale-95 cursor-pointer"
+                      className="px-4 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-sm"
                     >
                       <Send className="w-3.5 h-3.5" />
                       <span>Posting ke Threads</span>
@@ -1255,30 +850,31 @@ export const GeneratorPage: React.FC = () => {
               )}
             </div>
           ) : (
-            <div className="h-full min-h-[360px] rounded-2xl border-2 border-dashed border-neutral-800/80 flex flex-col items-center justify-center p-8 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-neutral-400">
-                <Sparkles className="w-6 h-6 text-indigo-400" />
+            /* Calm Empty State */
+            <div className="rounded-2xl border border-zinc-900 bg-zinc-900/10 min-h-[360px] flex flex-col items-center justify-center p-8 text-center space-y-2">
+              <div className="w-10 h-10 rounded-xl bg-zinc-900 text-zinc-400 flex items-center justify-center font-bold text-sm">
+                @
               </div>
-              <div className="max-w-xs space-y-1">
-                <h3 className="text-sm font-bold text-white">Belum Ada Utas yang Digenerate</h3>
-                <p className="text-xs text-neutral-400 leading-relaxed">
-                  Ketikkan ide kasar lo di kolom sebelah kiri, lalu klik "Fusi Ide & Rilis 3 Varian Utas".
-                </p>
-              </div>
+              <h3 className="text-sm font-medium text-zinc-300">
+                Ruang Draf Kosong
+              </h3>
+              <p className="text-xs text-zinc-400 max-w-xs leading-relaxed">
+                Tulis ide kasar atau keresahan Anda di formulir sebelah kiri untuk menyusun 3 draf utas siap publikasi.
+              </p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Edit Notice Toast */}
+      {/* Edit Toast Notice */}
       {editNoticeToast && (
-        <div className="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-2xl flex items-center gap-2 border border-emerald-400/40">
-          <Check className="w-4 h-4 text-white" />
+        <div className="fixed bottom-6 right-6 z-50 px-3.5 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs font-medium shadow-xl flex items-center gap-2">
+          <Check className="w-3.5 h-3.5 text-emerald-400" />
           <span>{editNoticeToast}</span>
         </div>
       )}
 
-      {/* Visual Card Generator Modal */}
+      {/* Visual Generator Modal */}
       {visualGeneratorVariant && (
         <VisualCardGenerator
           variant={visualGeneratorVariant}
@@ -1294,9 +890,6 @@ export const GeneratorPage: React.FC = () => {
           variant={publishModalVariant}
           isOpen={!!publishModalVariant}
           onClose={() => setPublishModalVariant(null)}
-          onSuccess={(permalink) => {
-            handleMarkAsPosted(publishModalVariant);
-          }}
           onRequestOpenVisualGenerator={() => {
             setPublishModalVariant(null);
             setVisualGeneratorVariant(currentVariant || null);

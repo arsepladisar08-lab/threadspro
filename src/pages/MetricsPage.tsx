@@ -401,30 +401,27 @@ export const MetricsPage: React.FC = () => {
   const medianRtl = calculateMedian(allRtls);
 
   return (
-    <div className="max-w-5xl mx-auto px-3 sm:px-5 md:px-6 py-6 sm:py-8 pb-24 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 pb-28 space-y-6">
+      {/* Calm Header */}
+      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 border-b border-zinc-900 pb-5">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              <BarChart3 className="w-5 h-5" />
-            </span>
-            <h1 className="text-xl sm:text-2xl font-black text-white">Tracker Metrik Mandiri</h1>
-          </div>
-          <p className="text-xs sm:text-sm text-neutral-400 mt-1">
-            Pantau rasio Reply-to-Like dan kecepatan interaksi 60 menit pertama untuk membentuk bobot personalisasi (Label E).
+          <h1 className="text-xl font-semibold text-zinc-100 tracking-tight">
+            Tracker Metrik & Personalisasi (Label E)
+          </h1>
+          <p className="text-xs text-zinc-400 mt-1">
+            Pantau rasio Reply-to-Like dan kecepatan interaksi 60 menit pertama untuk melatih bobot AI khusus akun Anda.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Kontrol Pilihan Jumlah Utas (Semua / Input Angka) */}
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-900 border border-neutral-800 text-xs text-neutral-300">
-            <span className="text-[11px] text-neutral-400 font-medium">Ambil:</span>
+          {/* Kontrol Pilihan Jumlah Utas */}
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-zinc-300">
+            <span className="text-[11px] text-zinc-500">Ambil:</span>
             <select
               value={syncMode}
               onChange={(e) => setSyncMode(e.target.value as "all" | "custom")}
               disabled={isSyncing}
-              className="bg-neutral-950 border border-neutral-800 rounded-lg px-2 py-1 text-white text-xs font-semibold focus:outline-hidden focus:border-indigo-500 cursor-pointer"
+              className="bg-zinc-950 border border-zinc-800 rounded px-2 py-0.5 text-zinc-200 text-xs focus:outline-hidden cursor-pointer"
             >
               <option value="all">Semua Utas</option>
               <option value="custom">Batasi Jumlah</option>
@@ -440,10 +437,10 @@ export const MetricsPage: React.FC = () => {
                   onChange={(e) => setCustomLimit(Math.max(1, Number(e.target.value) || 1))}
                   disabled={isSyncing}
                   placeholder="25"
-                  className="w-16 px-2 py-1 rounded-lg bg-neutral-950 border border-neutral-700 text-white text-xs font-mono text-center focus:outline-hidden focus:border-indigo-500"
+                  className="w-14 px-1.5 py-0.5 rounded bg-zinc-950 border border-zinc-700 text-zinc-100 text-xs font-mono text-center focus:outline-hidden"
                   title="Ketik jumlah postingan yang ingin diimpor"
                 />
-                <span className="text-[10px] text-neutral-400">post</span>
+                <span className="text-[10px] text-zinc-500">post</span>
               </div>
             )}
           </div>
@@ -452,32 +449,32 @@ export const MetricsPage: React.FC = () => {
             type="button"
             onClick={handleSyncFromThreads}
             disabled={isSyncing}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-950/40 border border-indigo-500/30 text-indigo-300 hover:text-white hover:bg-indigo-900/40 hover:border-indigo-500/50 transition cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-zinc-300 hover:text-white transition cursor-pointer disabled:opacity-40"
             title="Impor kumpulan utas asli dari Meta Threads Graph API"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-indigo-400 ${isSyncing ? "animate-spin" : ""}`} />
-            <span>{isSyncing ? "Menarik Utas Asli..." : "Tarik Data Threads"}</span>
+            <RefreshCw className={`w-3.5 h-3.5 text-zinc-400 ${isSyncing ? "animate-spin" : ""}`} />
+            <span>{isSyncing ? "Menarik Data..." : "Tarik Data Threads"}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setShowAddForm(!showAddForm)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 transition cursor-pointer shadow-xs"
           >
-            <Plus className="w-4 h-4" />
-            <span>Catat Metrik Postingan</span>
+            <Plus className="w-3.5 h-3.5" />
+            <span>Catat Metrik</span>
           </button>
         </div>
       </div>
 
       {syncNotice && (
         <div
-          className={`p-3.5 rounded-2xl border text-xs flex items-start justify-between gap-3 ${
+          className={`p-3 rounded-xl border text-xs flex items-start justify-between gap-3 ${
             syncNotice.type === "success"
-              ? "bg-emerald-950/30 border-emerald-500/30 text-emerald-200"
+              ? "bg-zinc-900 border-emerald-500/30 text-emerald-300"
               : syncNotice.type === "error"
-              ? "bg-rose-950/30 border-rose-500/30 text-rose-200"
-              : "bg-indigo-950/30 border-indigo-500/30 text-indigo-200"
+              ? "bg-zinc-900 border-rose-500/30 text-rose-300"
+              : "bg-zinc-900 border-zinc-800 text-zinc-300"
           }`}
         >
           <div className="flex items-start gap-2.5">
@@ -486,14 +483,14 @@ export const MetricsPage: React.FC = () => {
             ) : syncNotice.type === "error" ? (
               <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
             ) : (
-              <Info className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+              <Info className="w-4 h-4 text-zinc-400 shrink-0 mt-0.5" />
             )}
             <span className="leading-relaxed">{syncNotice.text}</span>
           </div>
           <button
             type="button"
             onClick={() => setSyncNotice(null)}
-            className="text-neutral-400 hover:text-white text-xs font-bold px-1.5 py-0.5 rounded transition"
+            className="text-zinc-500 hover:text-white text-xs px-1.5 py-0.5 rounded transition"
           >
             ×
           </button>
@@ -502,38 +499,38 @@ export const MetricsPage: React.FC = () => {
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-1">
-          <span className="text-[11px] text-neutral-400 font-medium">Median Reply-to-Like</span>
-          <div className="text-2xl font-black text-white">
+        <div className="p-4 rounded-2xl border border-zinc-900 bg-zinc-900/20 space-y-1">
+          <span className="text-[11px] text-zinc-400">Median Reply-to-Like</span>
+          <div className="text-xl font-semibold text-zinc-100 font-mono">
             {medianRtl !== null ? medianRtl.toFixed(3) : "-"}
           </div>
           <span
-            className={`text-[10px] font-bold block ${
-              medianRtl && medianRtl >= 0.15 ? "text-emerald-400" : "text-amber-400"
+            className={`text-[10px] block ${
+              medianRtl && medianRtl >= 0.15 ? "text-emerald-400 font-medium" : "text-zinc-500"
             }`}
           >
-            {medianRtl && medianRtl >= 0.15 ? "✓ Sehat di atas patokan 0,15" : "Patokan praktisi: > 0,15"}
+            {medianRtl && medianRtl >= 0.15 ? "✓ Di atas target 0,15" : "Target ideal: > 0,15"}
           </span>
         </div>
 
-        <div className="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-1">
-          <span className="text-[11px] text-neutral-400 font-medium">Total Postingan Dicatat</span>
-          <div className="text-2xl font-black text-white">{entries.length} Post</div>
-          <span className="text-[10px] text-neutral-400">
-            {entries.length >= 5 ? "Data cukup untuk bobot E" : "Data sedikit (butuh min 5)"}
+        <div className="p-4 rounded-2xl border border-zinc-900 bg-zinc-900/20 space-y-1">
+          <span className="text-[11px] text-zinc-400">Total Postingan Dicatat</span>
+          <div className="text-xl font-semibold text-zinc-100 font-mono">{entries.length} Post</div>
+          <span className="text-[10px] text-zinc-500">
+            {entries.length >= 5 ? "Cukup untuk bobot E" : "Minimal 5 data"}
           </span>
         </div>
 
-        <div className="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-1">
-          <span className="text-[11px] text-neutral-400 font-medium">Jam Ramai Terbaik</span>
-          <div className="text-base sm:text-lg font-bold text-white truncate">19.30 - 22.30 WIB</div>
-          <span className="text-[10px] text-neutral-400 block">Cenderung di akunmu</span>
+        <div className="p-4 rounded-2xl border border-zinc-900 bg-zinc-900/20 space-y-1">
+          <span className="text-[11px] text-zinc-400">Jam Prime-Time</span>
+          <div className="text-sm font-semibold text-zinc-100 font-mono truncate">19.30 - 22.30 WIB</div>
+          <span className="text-[10px] text-zinc-500 block">Siklus prime-time akun</span>
         </div>
 
-        <div className="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-1">
-          <span className="text-[11px] text-neutral-400 font-medium">Tipe Hook Paling Ramai</span>
-          <div className="text-base sm:text-lg font-bold text-indigo-400 truncate">Hook Angka & Audit</div>
-          <span className="text-[10px] text-neutral-400 block">Berdasarkan median RTL</span>
+        <div className="p-4 rounded-2xl border border-zinc-900 bg-zinc-900/20 space-y-1">
+          <span className="text-[11px] text-zinc-400">Pola Hook Terbaik</span>
+          <div className="text-sm font-semibold text-zinc-100 truncate">Hook Angka & Realita</div>
+          <span className="text-[10px] text-zinc-500 block">Berdasarkan RTL tertinggi</span>
         </div>
       </div>
 
@@ -662,17 +659,19 @@ export const MetricsPage: React.FC = () => {
       )}
 
       {/* Table of Entries */}
-      <div className="rounded-2xl bg-neutral-900 border border-neutral-800 overflow-hidden shadow-xs">
-        <div className="p-4 border-b border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="rounded-2xl border border-zinc-900 bg-zinc-950 overflow-hidden">
+        <div className="p-4 border-b border-zinc-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider">Riwayat Postingan Utas Asli</h3>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              <h3 className="text-xs font-semibold text-zinc-100 uppercase tracking-wider text-[11px]">
+                Riwayat Postingan Utas
+              </h3>
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-zinc-900 border border-zinc-800 text-zinc-300">
                 {entries.length} Utas
               </span>
             </div>
-            <span className="text-[11px] text-neutral-400 mt-0.5 block">
-              Ditarik langsung dari akun Meta Threads resmi Anda • Patokan RTL ideal: &gt; 0,15
+            <span className="text-[11px] text-zinc-400 mt-0.5 block">
+              Ditarik dari Meta Threads Graph API · Target rasio RTL: &gt; 0,15
             </span>
           </div>
 
@@ -681,7 +680,7 @@ export const MetricsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={requestClearAll}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-rose-500/10 border border-rose-500/20 text-rose-300 hover:bg-rose-500/20 transition cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-rose-400 hover:text-rose-300 hover:bg-rose-950/20 transition cursor-pointer"
                 title="Hapus riwayat metrik yang tersimpan saat ini"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -692,55 +691,50 @@ export const MetricsPage: React.FC = () => {
         </div>
 
         {/* Petunjuk Membaca Metrik */}
-        <div className="px-4 py-2.5 bg-neutral-950/60 border-b border-neutral-800 text-[11px] text-neutral-400 flex flex-wrap items-center justify-between gap-2">
+        <div className="px-4 py-2 bg-zinc-900/30 border-b border-zinc-900 text-[11px] text-zinc-400 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1.5">
-            <Info className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+            <Info className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
             <span>
-              <strong>Keterangan Metrik:</strong> <em>Views</em>, <em>Like</em>, dan <em>Reply</em> ditarik dari Meta Insights (butuh izin <code>threads_manage_insights</code>). <em>Velocity 60</em> (kecepatan interaksi 60 menit pertama) &amp; <em>Reply Depth</em> dapat disesuaikan manual via tombol Edit (✏️).
+              Views, Like, dan Reply ditarik otomatis dari Meta Insights. Velocity 60 dan Reply Depth dapat disesuaikan manual via tombol edit.
             </span>
           </div>
-          {entries.some((e) => e.views === 0 && e.likes === 0) && (
-            <span className="text-[10px] text-amber-400/90 font-medium">
-              💡 Nilai 0 atau &apos;-&apos; dapat diisi kapan saja via tombol pensil
-            </span>
-          )}
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-neutral-300">
-            <thead className="bg-neutral-950 text-neutral-400 font-bold uppercase text-[10px] border-b border-neutral-800">
+          <table className="w-full text-left text-xs text-zinc-300">
+            <thead className="bg-zinc-950 text-zinc-400 font-medium uppercase text-[10px] border-b border-zinc-900">
               <tr>
-                <th className="p-3 min-w-[280px]">Konten Utas Asli &amp; Waktu</th>
-                <th className="p-3 text-right" title="Total tayangan postingan dari Meta API">Views</th>
-                <th className="p-3 text-right" title="Total suka postingan dari Meta API">Like</th>
-                <th className="p-3 text-right" title="Total balasan postingan dari Meta API">Reply</th>
-                <th className="p-3 text-right" title="Rasio Reply dibagi Like (ideal > 0.15)">RTL Ratio</th>
-                <th className="p-3 text-right" title="Interaksi di 60 menit pertama dibagi 60">Velocity 60</th>
+                <th className="p-3 min-w-[280px]">Konten Utas &amp; Waktu</th>
+                <th className="p-3 text-right">Views</th>
+                <th className="p-3 text-right">Like</th>
+                <th className="p-3 text-right">Reply</th>
+                <th className="p-3 text-right">RTL Ratio</th>
+                <th className="p-3 text-right">Velocity 60</th>
                 <th className="p-3 text-center min-w-[90px]">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-800/60 font-mono text-xs">
+            <tbody className="divide-y divide-zinc-900 font-mono text-xs">
               {entries.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center font-sans text-neutral-400">
-                    <p className="text-sm font-semibold text-white mb-1">Belum Ada Data Utas yang Tersimpan</p>
-                    <p className="text-xs text-neutral-500 mb-4 max-w-md mx-auto">
-                      Klik tombol &quot;Tarik Data Threads&quot; di atas untuk mengimpor kumpulan utas asli dari akun Threads Anda, atau catat metrik secara manual.
+                  <td colSpan={7} className="p-8 text-center font-sans text-zinc-400">
+                    <p className="text-sm font-semibold text-zinc-200 mb-1">Belum Ada Data Utas</p>
+                    <p className="text-xs text-zinc-400 mb-4 max-w-md mx-auto">
+                      Tarik kumpulan postingan dari akun Threads Anda atau catat metrik secara manual.
                     </p>
                     <div className="flex items-center justify-center gap-2">
                       <button
                         type="button"
                         onClick={handleSyncFromThreads}
                         disabled={isSyncing}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-md shadow-indigo-600/20 cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 transition cursor-pointer shadow-xs"
                       >
                         <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin" : ""}`} />
-                        <span>Tarik Data Threads Asli</span>
+                        <span>Tarik Data Threads</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setShowAddForm(true)}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-neutral-800 hover:bg-neutral-700 text-neutral-200 transition cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-zinc-900 hover:bg-zinc-850 text-zinc-200 border border-zinc-800 transition cursor-pointer"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>Catat Manual</span>

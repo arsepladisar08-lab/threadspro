@@ -9,11 +9,8 @@ import {
   Search,
   BarChart3,
   Database,
-  User,
   ShieldCheck,
   BookOpen,
-  ArrowRight,
-  ExternalLink,
   Key,
 } from "lucide-react";
 import { UserProfile } from "../types";
@@ -33,14 +30,12 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 }) => {
   const location = useLocation();
 
-  // Tutup drawer ketika route berganti
   useEffect(() => {
     if (isOpen) {
       onClose();
     }
   }, [location.pathname]);
 
-  // Tutup dengan Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
@@ -54,44 +49,42 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   if (!isOpen) return null;
 
   const navLinks = [
-    { path: "/", label: "Generator Utas (Idea Fusion)", icon: Sparkles, desc: "Ubah ide kasar jadi 3 varian utas" },
-    { path: "/kalender", label: "Kalender Konten", icon: Calendar, desc: "Jadwal 7-14 hari siap posting" },
-    { path: "/cek", label: "Cek Utas & Kepatuhan", icon: CheckSquare, desc: "Audit anti-bait dan batas karakter" },
-    { path: "/balas", label: "Asisten Balas Komentar", icon: MessageSquareText, desc: "Bangun reply depth dua arah" },
-    { path: "/ulas", label: "Ulas Utas Viral", icon: Search, desc: "Bedah formula psikologi konten" },
-    { path: "/metrik", label: "Metrik Tracker", icon: BarChart3, desc: "Pantau performa & rasio algoritma" },
-    { path: "/bank", label: "Bank Pola Referensi", icon: Database, desc: "Katalog pola hook teruji" },
-    { path: "/admin/api-lab", label: "Threads API Lab & Kunci", icon: ShieldCheck, desc: "Token akun Threads & Gemini key" },
-    { path: "/profil", label: "Profil & Niche Kreator", icon: User, desc: "Atur target audiens & gaya bahasa" },
-    { path: "/onboarding", label: "Onboarding Akun Threads", icon: Key, desc: "Status koneksi akun Threads & syarat akses" },
+    { path: "/", label: "Generator Utas", icon: Sparkles },
+    { path: "/kalender", label: "Kalender Konten", icon: Calendar },
+    { path: "/cek", label: "Cek Utas", icon: CheckSquare },
+    { path: "/balas", label: "Balas Komen", icon: MessageSquareText },
+    { path: "/ulas", label: "Ulas Utas", icon: Search },
+    { path: "/metrik", label: "Metrik Tracker", icon: BarChart3 },
+    { path: "/bank", label: "Bank Referensi", icon: Database },
+    { path: "/admin/api-lab", label: "API Lab & Kunci", icon: ShieldCheck },
+    { path: "/onboarding", label: "Onboarding Threads", icon: Key },
   ];
 
   return (
     <div className="fixed inset-0 z-50 lg:hidden flex justify-end">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity animate-in fade-in"
+        className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in"
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Slide-over Drawer Panel */}
-      <div className="relative w-full max-w-xs bg-zinc-950 border-l border-zinc-800 h-full flex flex-col z-10 shadow-2xl animate-in slide-in-from-right duration-250">
+      <div className="relative w-full max-w-xs bg-zinc-950 border-l border-zinc-900 h-full flex flex-col z-10 shadow-xl animate-in slide-in-from-right duration-200">
         {/* Drawer Header */}
-        <div className="p-4 border-b border-zinc-800/80 flex items-center justify-between bg-zinc-900/40">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-rose-500 flex items-center justify-center text-white font-bold text-sm">
+        <div className="p-4 border-b border-zinc-900 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-zinc-100 text-zinc-950 flex items-center justify-center font-bold text-xs">
               @
             </div>
             <div>
-              <h3 className="font-extrabold text-sm text-white">Menu AutoThreads</h3>
-              <p className="text-[10px] text-zinc-400">Navigasi Kreator Cepat</p>
+              <h3 className="font-semibold text-sm text-zinc-100">AutoThreads</h3>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
+            className="p-1 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 transition cursor-pointer"
             aria-label="Tutup menu"
           >
             <X className="w-5 h-5" />
@@ -100,45 +93,42 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 
         {/* User Niche Card */}
         {profile && (
-          <div className="p-3 mx-3 my-2 rounded-xl bg-zinc-900/70 border border-zinc-800/80 flex items-center justify-between text-xs">
+          <div className="p-3 mx-3 my-2 rounded-xl bg-zinc-900/60 border border-zinc-800/80 flex items-center justify-between text-xs">
             <div className="min-w-0 pr-2">
-              <span className="text-[10px] text-zinc-400 block font-medium">Niche Aktif:</span>
-              <span className="font-bold text-white truncate block">
+              <span className="text-[10px] text-zinc-400 block">Niche:</span>
+              <span className="font-medium text-zinc-200 truncate block">
                 {profile.niche} ({profile.tone})
               </span>
             </div>
             <Link
               to="/profil"
               onClick={onClose}
-              className="px-2 py-1 rounded-lg bg-zinc-800 text-indigo-300 font-semibold text-[11px] shrink-0"
+              className="px-2.5 py-1 rounded-lg bg-zinc-800 text-zinc-200 hover:text-white font-medium text-xs shrink-0"
             >
-              Ubah
+              Atur Profil
             </Link>
           </div>
         )}
 
-        {/* Quick Panduan Banner */}
+        {/* Quick Panduan Button */}
         <div className="px-3 pb-2">
           <button
             onClick={() => {
               onClose();
               onOpenGuide();
             }}
-            className="w-full p-3 rounded-xl bg-indigo-950/30 border border-indigo-500/20 hover:border-indigo-500/40 text-left transition flex items-center justify-between group cursor-pointer"
+            className="w-full p-2.5 rounded-xl bg-zinc-900/40 border border-zinc-800/60 hover:bg-zinc-900 text-left transition flex items-center justify-between text-xs text-zinc-300 cursor-pointer"
           >
-            <div className="flex items-center gap-2.5">
-              <BookOpen className="w-4 h-4 text-indigo-400 shrink-0" />
-              <div>
-                <span className="text-xs font-bold text-white block">Buku Panduan Interaktif</span>
-                <span className="text-[10px] text-zinc-400 block">Kaidah algoritma & tutorial lengkap</span>
-              </div>
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-zinc-400 shrink-0" />
+              <span>Buku Panduan Algoritma</span>
             </div>
-            <ArrowRight className="w-4 h-4 text-indigo-400 group-hover:translate-x-0.5 transition shrink-0" />
+            <span className="text-zinc-500">→</span>
           </button>
         </div>
 
         {/* Navigation Links List */}
-        <div className="flex-1 overflow-y-auto px-3 py-1 space-y-1 scrollbar-none">
+        <div className="flex-1 overflow-y-auto px-3 py-1 space-y-0.5 scrollbar-none">
           {navLinks.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
@@ -148,33 +138,26 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                 key={item.path}
                 to={item.path}
                 onClick={onClose}
-                className={`flex items-start gap-3 p-2.5 rounded-xl transition ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition ${
                   isActive
-                    ? "bg-zinc-900 text-white font-semibold border border-zinc-800"
-                    : "text-zinc-400 hover:text-white hover:bg-zinc-900/60"
+                    ? "bg-zinc-900 text-zinc-100 font-semibold"
+                    : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900/50"
                 }`}
               >
                 <Icon
-                  className={`w-4 h-4 mt-0.5 shrink-0 ${
-                    isActive ? "text-indigo-400" : "text-zinc-400"
+                  className={`w-4 h-4 shrink-0 ${
+                    isActive ? "text-zinc-100" : "text-zinc-400"
                   }`}
                 />
-                <div className="min-w-0 flex-1">
-                  <span className="text-xs font-bold block truncate text-zinc-200">
-                    {item.label}
-                  </span>
-                  <span className="text-[10px] text-zinc-500 block truncate">
-                    {item.desc}
-                  </span>
-                </div>
+                <span className="truncate">{item.label}</span>
               </Link>
             );
           })}
         </div>
 
         {/* Drawer Footer */}
-        <div className="p-3 border-t border-zinc-800/80 bg-zinc-900/40 text-center text-[10px] text-zinc-500 pb-safe">
-          AutoThreads ID • Generator Utas Ramah Algoritma
+        <div className="p-3 border-t border-zinc-900 text-center text-[10px] text-zinc-500 pb-safe">
+          AutoThreads · Minimalist Threads Writing Engine
         </div>
       </div>
     </div>

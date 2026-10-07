@@ -11,10 +11,7 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
-  Save,
-  Trash2,
   Sliders,
-  Sparkles,
 } from "lucide-react";
 import {
   threadsClient,
@@ -22,7 +19,6 @@ import {
   QuotaState,
   ThreadsPostData,
 } from "../services/threadsClient";
-import { testGeminiApiKey } from "../services/ai";
 import { storage } from "../lib/storage";
 import { ThreadsConnectModal } from "../components/ThreadsConnectModal";
 
@@ -30,23 +26,13 @@ export const ThreadsApiLabPage: React.FC = () => {
   const [account, setAccount] = useState<ThreadsAccount | null>(null);
   const [quota, setQuota] = useState<QuotaState | null>(null);
   const [posts, setPosts] = useState<ThreadsPostData[]>([]);
-  const [activeTab, setActiveTab] = useState<"settings" | "inspector" | "quota">("settings");
+  const [activeTab, setActiveTab] = useState<"auth" | "inspector" | "quota">("auth");
   const [activeEndpoint, setActiveEndpoint] = useState<string>("user_profile");
   const [rawResponse, setRawResponse] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
-
-  // Gemini API Key State
-  const [geminiKeyInput, setGeminiKeyInput] = useState("");
-  const [hasCustomGeminiKey, setHasCustomGeminiKey] = useState(false);
-  const [showGeminiKey, setShowGeminiKey] = useState(false);
-  const [geminiTestStatus, setGeminiTestStatus] = useState<{
-    type: "success" | "error" | "info" | null;
-    message: string;
-  }>({ type: null, message: "" });
-  const [isTestingGemini, setIsTestingGemini] = useState(false);
 
   // Threads Credentials State
   const [threadsTokenInput, setThreadsTokenInput] = useState("");
@@ -62,11 +48,6 @@ export const ThreadsApiLabPage: React.FC = () => {
   }, []);
 
   const loadKeys = async () => {
-    const customGemini = await storage.getCustomApiKey();
-    if (customGemini) {
-      setGeminiKeyInput(customGemini);
-      setHasCustomGeminiKey(true);
-    }
     const token = await storage.getThreadsToken();
     if (token) {
       setThreadsTokenInput(token);
@@ -96,50 +77,11 @@ export const ThreadsApiLabPage: React.FC = () => {
     } else {
       setRawResponse({
         status: "idle",
-        message: "Akun Threads belum terhubung. Mode mock dinonaktifkan. Hubungkan akun Anda untuk melihat respons API nyata.",
+        message: "Akun Threads belum terhubung. Hubungkan akun Anda untuk melihat respons API nyata.",
       });
     }
   };
 
-  // --- Gemini API Key Actions ---
-  const handleSaveGeminiKey = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!geminiKeyInput.trim()) {
-      setGeminiTestStatus({ type: "error", message: "API Key Gemini tidak boleh kosong." });
-      return;
-    }
-    setIsTestingGemini(true);
-    setGeminiTestStatus({ type: "info", message: "Menguji validitas API Key ke Google Gemini..." });
-    const res = await testGeminiApiKey(geminiKeyInput.trim());
-    setIsTestingGemini(false);
-
-    if (res.success) {
-      await storage.saveCustomApiKey(geminiKeyInput.trim());
-      setHasCustomGeminiKey(true);
-      setGeminiTestStatus({
-        type: "success",
-        message: "API Key Google Gemini berhasil diverifikasi dan disimpan secara lokal!",
-      });
-    } else {
-      setGeminiTestStatus({
-        type: "error",
-        message: `Verifikasi gagal: ${res.message}`,
-      });
-    }
-  };
-
-  const handleClearGeminiKey = async () => {
-    await storage.clearCustomApiKey();
-    setGeminiKeyInput("");
-    setHasCustomGeminiKey(false);
-    setGeminiTestStatus({
-      type: "info",
-      message: "Kunci mandiri dihapus. Aplikasi sekarang menggunakan kunci API default dari environment.",
-    });
-    setTimeout(() => setGeminiTestStatus({ type: null, message: "" }), 3500);
-  };
-
-  // --- Threads Token Actions ---
   const handleSaveThreadsToken = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!threadsTokenInput.trim()) {
@@ -147,12 +89,11 @@ export const ThreadsApiLabPage: React.FC = () => {
       return;
     }
     setIsTestingThreads(true);
-    setThreadsSaveNotice("Menghubungkan token ke Meta Threads Graph API...");
+    setThreadsSaveNotice("Memverifikasi token ke Meta Threads Graph API...");
 
     try {
       const acc = await threadsClient.connectWithToken(threadsTokenInput.trim());
       setAccount(acc);
-      // Simpan juga App ID & Secret jika ada
       await storage.saveThreadsAppCreds({
         appId: threadsAppIdInput.trim() || undefined,
         appSecret: threadsAppSecretInput.trim() || undefined,
@@ -163,7 +104,7 @@ export const ThreadsApiLabPage: React.FC = () => {
       setThreadsSaveNotice(`Gagal: ${err.message}`);
     } finally {
       setIsTestingThreads(false);
-      setTimeout(() => setThreadsSaveNotice(null), 5000);
+      setTimeout(() => setThreadsSaveNotice(null), 4000);
     }
   };
 
@@ -185,12 +126,12 @@ export const ThreadsApiLabPage: React.FC = () => {
     try {
       const refreshed = await threadsClient.fetchThreadsOriginal();
       setPosts(refreshed);
-      setSyncStatus(`Berhasil menyinkronkan ${refreshed.length} kumpulan utas asli dari akun Threads.`);
+      setSyncStatus(`Berhasil menyinkronkan ${refreshed.length} utas asli dari akun Threads.`);
     } catch (err: any) {
       setSyncStatus(`Gagal sinkronisasi: ${err.message}`);
     } finally {
       setIsSyncing(false);
-      setTimeout(() => setSyncStatus(null), 5000);
+      setTimeout(() => setSyncStatus(null), 4000);
     }
   };
 
@@ -203,7 +144,7 @@ export const ThreadsApiLabPage: React.FC = () => {
       setRawResponse({
         endpoint: ep,
         error: "Akun Threads belum terhubung.",
-        hint: "Silakan masukkan Token Akses pada tab 'Pengaturan API' terlebih dahulu.",
+        hint: "Silakan masukkan Token Akses pada tab Koneksi terlebih dahulu.",
       });
       return;
     }
@@ -253,18 +194,11 @@ export const ThreadsApiLabPage: React.FC = () => {
           });
         } else {
           setRawResponse({
-            endpoint: "GET /{post_id}/insights",
-            status: "notice",
-            message: "Belum ada postingan terdeteksi di akun ini untuk membaca metrik.",
+            endpoint: "GET /{threads-media-id}/insights",
+            status: 404,
+            message: "Belum ada postingan tersinkronisasi untuk diuji metriknya.",
           });
         }
-      } else if (ep === "publish_container") {
-        setRawResponse({
-          endpoint: "POST /me/threads (Simulation Check)",
-          status: 200,
-          info: "Endpoint publikasi siap digunakan. Untuk menerbitkan utas nyata, gunakan tombol 'Posting ke Akun Threads' di halaman Generator atau Pratinjau Varian.",
-          account: `@${account.username}`,
-        });
       }
     } catch (err: any) {
       setRawResponse({
@@ -277,31 +211,27 @@ export const ThreadsApiLabPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-3 sm:px-5 md:px-6 py-6 sm:py-8 pb-24 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 pb-28 space-y-6">
+      {/* Calm Header */}
+      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-3 border-b border-zinc-900 pb-5">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              <ShieldCheck className="w-5 h-5" />
-            </span>
-            <h1 className="text-xl sm:text-2xl font-black text-white">API Lab & Pengaturan Kunci</h1>
-          </div>
-          <p className="text-xs sm:text-sm text-neutral-400 mt-1">
-            Konfigurasi mandiri API Key Google Gemini, kredensial Meta Threads Graph API, dan live inspector.
+          <h1 className="text-xl font-semibold text-zinc-100 tracking-tight">
+            API Lab & Diagnostik Meta Threads
+          </h1>
+          <p className="text-xs text-zinc-400 mt-1">
+            Inspeksi endpoint resmi Graph API, monitor limit kuota harian 25 post, dan verifikasi token.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-start sm:self-auto">
           {account && (
             <button
               type="button"
               onClick={handleSyncPosts}
               disabled={isSyncing}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 transition"
-              title="Tarik postingan terbaru dari Threads"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-900 hover:bg-zinc-850 text-zinc-300 border border-zinc-800 transition cursor-pointer"
             >
-              <RefreshCw className={`w-3.5 h-3.5 text-indigo-400 ${isSyncing ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-3.5 h-3.5 text-zinc-400 ${isSyncing ? "animate-spin" : ""}`} />
               <span>{isSyncing ? "Menyinkronkan..." : "Sinkronkan Threads"}</span>
             </button>
           )}
@@ -309,7 +239,7 @@ export const ThreadsApiLabPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/25 transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 transition cursor-pointer shadow-xs"
           >
             <Key className="w-3.5 h-3.5" />
             <span>Wizard Koneksi</span>
@@ -318,191 +248,65 @@ export const ThreadsApiLabPage: React.FC = () => {
       </div>
 
       {syncStatus && (
-        <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 text-xs text-neutral-200 flex items-center gap-2">
+        <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{syncStatus}</span>
         </div>
       )}
 
       {/* Navigation Tabs */}
-      <div className="flex border-b border-neutral-800 gap-2 text-xs font-bold">
+      <div className="flex items-center gap-1 p-1 rounded-xl bg-zinc-900 border border-zinc-850 text-xs w-fit">
         <button
           type="button"
-          onClick={() => setActiveTab("settings")}
-          className={`pb-3 px-3 flex items-center gap-2 border-b-2 transition ${
-            activeTab === "settings"
-              ? "border-indigo-500 text-white"
-              : "border-transparent text-neutral-400 hover:text-neutral-200"
+          onClick={() => setActiveTab("auth")}
+          className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
+            activeTab === "auth" ? "bg-zinc-800 text-zinc-100 font-semibold" : "text-zinc-400 hover:text-zinc-200"
           }`}
         >
-          <Sliders className="w-4 h-4" />
-          <span>Pengaturan Kunci API (Manual Input)</span>
+          Koneksi & Token Threads
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab("inspector")}
-          className={`pb-3 px-3 flex items-center gap-2 border-b-2 transition ${
-            activeTab === "inspector"
-              ? "border-indigo-500 text-white"
-              : "border-transparent text-neutral-400 hover:text-neutral-200"
+          className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
+            activeTab === "inspector" ? "bg-zinc-800 text-zinc-100 font-semibold" : "text-zinc-400 hover:text-zinc-200"
           }`}
         >
-          <Terminal className="w-4 h-4" />
-          <span>Live Endpoint Inspector</span>
+          Live Endpoint Inspector
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab("quota")}
-          className={`pb-3 px-3 flex items-center gap-2 border-b-2 transition ${
-            activeTab === "quota"
-              ? "border-indigo-500 text-white"
-              : "border-transparent text-neutral-400 hover:text-neutral-200"
+          className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
+            activeTab === "quota" ? "bg-zinc-800 text-zinc-100 font-semibold" : "text-zinc-400 hover:text-zinc-200"
           }`}
         >
-          <ShieldCheck className="w-4 h-4" />
-          <span>Monitor Kuota Meta</span>
+          Monitor Kuota (25/Hari)
         </button>
       </div>
 
-      {/* TAB 1: PENGATURAN KUNCI API (MANUAL INPUT SECARA MANDIRI) */}
-      {activeTab === "settings" && (
+      {/* TAB 1: KONEKSI & TOKEN THREADS */}
+      {activeTab === "auth" && (
         <div className="space-y-6">
-          {/* Section 1: Google Gemini API Key */}
-          <div className="p-6 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5">
-                <span className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                  <Sparkles className="w-4 h-4" />
-                </span>
-                <div>
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                    Google Gemini API Key (Input Mandiri)
-                  </h3>
-                  <p className="text-xs text-neutral-400">
-                    Kunci API yang digunakan untuk menghasilkan utas, hook DNA, pengecekan kurasi, dan balasan.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span
-                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                    hasCustomGeminiKey
-                      ? "bg-purple-500/15 text-purple-300 border border-purple-500/30"
-                      : "bg-neutral-800 text-neutral-400 border border-neutral-700"
-                  }`}
-                >
-                  {hasCustomGeminiKey ? "Kunci Mandiri Aktif" : "Kunci Default Sistem"}
-                </span>
-              </div>
-            </div>
-
-            {/* Test Status Alert */}
-            {geminiTestStatus.type && (
-              <div
-                className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
-                  geminiTestStatus.type === "success"
-                    ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                    : geminiTestStatus.type === "error"
-                    ? "bg-rose-500/10 border-rose-500/20 text-rose-400"
-                    : "bg-indigo-500/10 border-indigo-500/20 text-indigo-300"
-                }`}
-              >
-                {geminiTestStatus.type === "success" ? (
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                )}
-                <span>{geminiTestStatus.message}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSaveGeminiKey} className="space-y-3">
+          <div className="p-5 rounded-2xl border border-zinc-900 bg-zinc-900/20 space-y-4 text-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-900 pb-3">
               <div>
-                <label className="block text-xs font-semibold text-neutral-300 mb-1.5">
-                  Masukkan Gemini API Key Anda:
-                </label>
-                <div className="relative flex items-center">
-                  <input
-                    type={showGeminiKey ? "text" : "password"}
-                    value={geminiKeyInput}
-                    onChange={(e) => setGeminiKeyInput(e.target.value)}
-                    placeholder="AIzaSy..."
-                    className="w-full p-3 pr-20 rounded-xl bg-neutral-950 border border-neutral-800 text-xs text-white placeholder-neutral-500 focus:outline-hidden focus:border-indigo-500 font-mono"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowGeminiKey(!showGeminiKey)}
-                    className="absolute right-3 p-1 text-neutral-400 hover:text-white rounded-md transition"
-                    title={showGeminiKey ? "Sembunyikan" : "Tampilkan"}
-                  >
-                    {showGeminiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-neutral-500 mt-1.5">
-                  <span>Dapatkan API Key gratis di Google AI Studio (aistudio.google.com).</span>
-                  <span>Tersimpan privat di IndexedDB browser Anda</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-1">
-                {hasCustomGeminiKey && (
-                  <button
-                    type="button"
-                    onClick={handleClearGeminiKey}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 text-rose-400" />
-                    <span>Hapus Kunci Mandiri</span>
-                  </button>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isTestingGemini}
-                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 transition disabled:opacity-50 cursor-pointer"
-                >
-                  {isTestingGemini ? (
-                    <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>Menguji & Menyimpan...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-3.5 h-3.5" />
-                      <span>Uji & Simpan Gemini API Key</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-
-          {/* Section 2: Meta Threads API Token & Credentials */}
-          <div className="p-6 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5">
-                <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                  <Key className="w-4 h-4" />
-                </span>
-                <div>
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                    Meta Threads API Credentials (Input Mandiri)
-                  </h3>
-                  <p className="text-xs text-neutral-400">
-                    Token Akses dan Kredensial App resmi untuk sinkronisasi profil, metrik, dan penerbitan postingan.
-                  </p>
-                </div>
+                <h2 className="text-sm font-semibold text-zinc-100">
+                  Kredensial Meta Threads Graph API
+                </h2>
+                <p className="text-[11px] text-zinc-400 mt-0.5">
+                  Token disimpan secara aman di IndexedDB perangkat Anda tanpa transit ke server pihak ketiga.
+                </p>
               </div>
 
               <div className="flex items-center gap-2">
                 <span
-                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-mono ${
                     account
-                      ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
-                      : "bg-neutral-800 text-neutral-400 border border-neutral-700"
+                      ? "bg-zinc-800 text-zinc-200 border border-zinc-700"
+                      : "bg-zinc-900 text-zinc-500 border border-zinc-850"
                   }`}
                 >
                   {account ? `Terhubung: @${account.username}` : "Belum Terhubung"}
@@ -511,97 +315,83 @@ export const ThreadsApiLabPage: React.FC = () => {
             </div>
 
             {threadsSaveNotice && (
-              <div className="p-3 rounded-xl bg-neutral-950 border border-neutral-800 text-xs text-neutral-200 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-indigo-400 shrink-0" />
+              <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>{threadsSaveNotice}</span>
               </div>
             )}
 
             <form onSubmit={handleSaveThreadsToken} className="space-y-4">
-              {/* User Access Token */}
-              <div>
-                <label className="block text-xs font-semibold text-neutral-300 mb-1.5">
-                  Threads User Access Token (Wajib):
+              <div className="space-y-1.5">
+                <label className="block font-medium text-zinc-300">
+                  Threads User Access Token:
                 </label>
                 <div className="relative flex items-center">
                   <input
                     type={showThreadsToken ? "text" : "password"}
                     value={threadsTokenInput}
                     onChange={(e) => setThreadsTokenInput(e.target.value)}
-                    placeholder="THQ... atau token dari Graph API Explorer"
-                    className="w-full p-3 pr-20 rounded-xl bg-neutral-950 border border-neutral-800 text-xs text-white placeholder-neutral-500 focus:outline-hidden focus:border-indigo-500 font-mono"
+                    placeholder="THQ..."
+                    className="w-full p-2.5 pr-20 rounded-xl bg-zinc-950 border border-zinc-850 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-hidden focus:border-zinc-600 font-mono"
                   />
                   <button
                     type="button"
                     onClick={() => setShowThreadsToken(!showThreadsToken)}
-                    className="absolute right-3 p-1 text-neutral-400 hover:text-white rounded-md transition"
+                    className="absolute right-3 p-1 text-zinc-500 hover:text-white"
                   >
-                    {showThreadsToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showThreadsToken ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
                 </div>
-                <span className="text-[11px] text-neutral-500 mt-1 block">
-                  Izin yang dibutuhkan: threads_basic, threads_content_publish, threads_manage_insights, threads_manage_replies.
-                </span>
               </div>
 
-              {/* Optional App ID & Secret */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                <div>
-                  <label className="block text-xs font-semibold text-neutral-300 mb-1">
-                    Threads App ID (Opsional OAuth):
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block font-medium text-zinc-300">
+                    Meta App ID (Opsional):
                   </label>
                   <input
                     type="text"
                     value={threadsAppIdInput}
                     onChange={(e) => setThreadsAppIdInput(e.target.value)}
-                    placeholder="Contoh: 184920491823"
-                    className="w-full p-2.5 rounded-xl bg-neutral-950 border border-neutral-800 text-xs text-white placeholder-neutral-600 focus:outline-hidden focus:border-indigo-500 font-mono"
+                    placeholder="1234567890..."
+                    className="w-full p-2.5 rounded-xl bg-zinc-950 border border-zinc-850 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-hidden font-mono"
                   />
                 </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-neutral-300 mb-1">
-                    Threads App Secret (Opsional):
+                <div className="space-y-1.5">
+                  <label className="block font-medium text-zinc-300">
+                    App Secret (Opsional):
                   </label>
                   <input
                     type="password"
                     value={threadsAppSecretInput}
                     onChange={(e) => setThreadsAppSecretInput(e.target.value)}
-                    placeholder="App Secret dari Meta Developer Console"
-                    className="w-full p-2.5 rounded-xl bg-neutral-950 border border-neutral-800 text-xs text-white placeholder-neutral-600 focus:outline-hidden focus:border-indigo-500 font-mono"
+                    placeholder="••••••••"
+                    className="w-full p-2.5 rounded-xl bg-zinc-950 border border-zinc-850 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-hidden font-mono"
                   />
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-2 pt-2">
-                {account && (
+              <div className="flex items-center justify-between pt-2 border-t border-zinc-900">
+                {account ? (
                   <button
                     type="button"
                     onClick={handleDisconnectThreads}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-rose-500/10 border border-rose-500/20 text-rose-300 hover:bg-rose-500/20 transition cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium text-rose-400 hover:text-rose-300 hover:bg-rose-950/20 transition cursor-pointer"
                   >
-                    <Unlink className="w-3.5 h-3.5" />
-                    <span>Putuskan Akun</span>
+                    Putuskan Akun
                   </button>
+                ) : (
+                  <span className="text-[11px] text-zinc-500">
+                    Belum punya token? Gunakan tombol Wizard Koneksi di kanan atas.
+                  </span>
                 )}
 
                 <button
                   type="submit"
                   disabled={isTestingThreads}
-                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 transition disabled:opacity-50 cursor-pointer"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 transition cursor-pointer shadow-xs disabled:opacity-40"
                 >
-                  {isTestingThreads ? (
-                    <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>Menyimpan & Menghubungkan...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-3.5 h-3.5" />
-                      <span>Verifikasi & Simpan Kredensial Threads</span>
-                    </>
-                  )}
+                  {isTestingThreads ? "Memverifikasi..." : "Simpan & Verifikasi Token"}
                 </button>
               </div>
             </form>
@@ -612,140 +402,97 @@ export const ThreadsApiLabPage: React.FC = () => {
       {/* TAB 2: LIVE ENDPOINT INSPECTOR */}
       {activeTab === "inspector" && (
         <div className="space-y-4">
-          {/* Account Card */}
-          {account ? (
-            <div className="p-5 rounded-2xl bg-neutral-900 border border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <img
-                  src={account.threads_profile_picture_url}
-                  alt={account.username}
-                  className="w-12 h-12 rounded-full border border-neutral-700 object-cover"
-                />
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-white">@{account.username}</h3>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      Akun Asli Aktif
-                    </span>
-                  </div>
-                  <p className="text-xs text-neutral-400 mt-0.5">{account.name}</p>
-                </div>
-              </div>
-              <div className="text-right text-[11px] text-neutral-400 space-y-1">
-                <div className="text-emerald-400 font-semibold flex items-center justify-end gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Meta Graph API Terhubung</span>
-                </div>
-                <div>Postingan tersimpan: <span className="text-white font-bold">{posts.length} post</span></div>
-              </div>
-            </div>
-          ) : (
-            <div className="p-5 rounded-2xl bg-neutral-900/60 border border-dashed border-neutral-800 text-center text-xs text-neutral-400">
-              Akun Threads belum terhubung. Buka tab <b className="text-white">Pengaturan Kunci API</b> untuk memasukkan Token Akses secara mandiri.
-            </div>
-          )}
+          <div className="flex flex-wrap gap-2 text-xs">
+            <button
+              type="button"
+              onClick={() => handleTestEndpoint("user_profile")}
+              className={`px-3 py-1.5 rounded-lg border transition cursor-pointer ${
+                activeEndpoint === "user_profile"
+                  ? "bg-zinc-850 border-zinc-650 text-zinc-100 font-semibold"
+                  : "bg-zinc-950 border-zinc-850 text-zinc-400 hover:border-zinc-750"
+              }`}
+            >
+              GET /me (Profil Akun)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleTestEndpoint("user_threads")}
+              className={`px-3 py-1.5 rounded-lg border transition cursor-pointer ${
+                activeEndpoint === "user_threads"
+                  ? "bg-zinc-850 border-zinc-650 text-zinc-100 font-semibold"
+                  : "bg-zinc-950 border-zinc-850 text-zinc-400 hover:border-zinc-750"
+              }`}
+            >
+              GET /me/threads (Utas Asli)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleTestEndpoint("insights_snapshots")}
+              className={`px-3 py-1.5 rounded-lg border transition cursor-pointer ${
+                activeEndpoint === "insights_snapshots"
+                  ? "bg-zinc-850 border-zinc-650 text-zinc-100 font-semibold"
+                  : "bg-zinc-950 border-zinc-850 text-zinc-400 hover:border-zinc-750"
+              }`}
+            >
+              GET /{`{id}`}/insights (Metrik Nyata)
+            </button>
+          </div>
 
-          {/* Workbench */}
-          <div className="p-6 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-indigo-400" />
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider">Live API Endpoint Inspector</h3>
-              </div>
-              <span className="text-[11px] text-neutral-400">Meta Graph API v1.0</span>
+          <div className="p-4 rounded-2xl border border-zinc-900 bg-zinc-950 font-mono text-xs text-zinc-300 space-y-2 overflow-x-auto">
+            <div className="flex items-center justify-between text-zinc-500 pb-2 border-b border-zinc-900">
+              <span>RESPONS JSON RESMI GRAPH API</span>
+              <span>{isLoading ? "Memuat..." : "200 OK"}</span>
             </div>
-
-            {/* Buttons for Endpoints */}
-            <div className="flex flex-wrap gap-2 text-xs">
-              {[
-                { id: "user_profile", label: "GET /me (Profil Akun)" },
-                { id: "user_threads", label: "GET /me/threads (Daftar Post)" },
-                { id: "insights_snapshots", label: "GET /{id}/insights (Metrik Nyata)" },
-                { id: "publish_container", label: "POST /me/threads (Info Container)" },
-              ].map((ep) => (
-                <button
-                  key={ep.id}
-                  onClick={() => handleTestEndpoint(ep.id)}
-                  className={`px-3 py-1.5 rounded-xl font-semibold border transition cursor-pointer ${
-                    activeEndpoint === ep.id
-                      ? "bg-indigo-600/20 border-indigo-500 text-white"
-                      : "bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700"
-                  }`}
-                >
-                  {ep.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Response JSON Inspector */}
-            <div className="rounded-xl bg-neutral-950 p-4 font-mono text-xs border border-neutral-800 space-y-2 overflow-x-auto max-h-[380px]">
-              <div className="flex items-center justify-between text-[11px] text-neutral-500 pb-2 border-b border-neutral-800">
-                <span>Payload Inspector (Live API Data)</span>
-                {isLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-400" />}
-              </div>
-              <pre className="text-neutral-300 leading-relaxed text-[11px]">
-                {JSON.stringify(rawResponse, null, 2)}
-              </pre>
-            </div>
+            <pre className="text-[11px] leading-relaxed text-zinc-300">
+              {JSON.stringify(rawResponse, null, 2)}
+            </pre>
           </div>
         </div>
       )}
 
       {/* TAB 3: MONITOR KUOTA */}
-      {activeTab === "quota" && quota && (
-        <div className="space-y-4">
-          <h3 className="text-xs font-bold text-neutral-300 uppercase tracking-wider">
-            Guard Kuota Meta Graph API & Batas Harian:
-          </h3>
+      {activeTab === "quota" && (
+        <div className="p-5 rounded-2xl border border-zinc-900 bg-zinc-900/20 space-y-4 text-xs">
+          <h2 className="text-sm font-semibold text-zinc-100">
+            Status Batas Rate Limit & Kuota Meta Threads API
+          </h2>
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-1">
-              <span className="text-[11px] text-neutral-400">Panggilan Graph API:</span>
-              <div className="text-lg font-black text-white">
-                {quota.dailyCallsUsed} / {quota.dailyCallsLimit.toLocaleString()}
+            <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-850 space-y-1">
+              <span className="text-[11px] text-zinc-500 block">Batas Posting Harian:</span>
+              <div className="text-lg font-semibold text-zinc-100">
+                {quota?.publishingUsed || 0} / {quota?.publishingLimit || 25} Post
               </div>
-              <div className="w-full bg-neutral-800 h-1.5 rounded-full overflow-hidden">
-                <div
-                  className="bg-indigo-500 h-full rounded-full"
-                  style={{ width: `${Math.min(100, (quota.dailyCallsUsed / quota.dailyCallsLimit) * 100)}%` }}
-                />
-              </div>
-              <span className="text-[10px] text-neutral-500">Batas ketat Meta (Aman)</span>
+              <p className="text-[10px] text-zinc-500">Maksimum resmi 25 post per 24 jam</p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-1">
-              <span className="text-[11px] text-neutral-400">Publishing Harian:</span>
-              <div className="text-lg font-black text-emerald-400">
-                {quota.publishingUsed} / {quota.publishingLimit} post
+            <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-850 space-y-1">
+              <span className="text-[11px] text-zinc-500 block">Panggilan API Graph:</span>
+              <div className="text-lg font-semibold text-zinc-100">
+                {quota?.dailyCallsUsed || 0} / {quota?.dailyCallsLimit || 250} Panggilan
               </div>
-              <div className="w-full bg-neutral-800 h-1.5 rounded-full overflow-hidden">
-                <div
-                  className="bg-emerald-500 h-full rounded-full"
-                  style={{ width: `${Math.min(100, (quota.publishingUsed / quota.publishingLimit) * 100)}%` }}
-                />
-              </div>
-              <span className="text-[10px] text-neutral-500">Maksimum 25 post/hari dari Meta</span>
+              <p className="text-[10px] text-zinc-500">Batas aman konsumsi bandwidth</p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-1">
-              <span className="text-[11px] text-neutral-400">Circuit Breaker Status:</span>
-              <div className="text-lg font-black text-emerald-400 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>{quota.circuitBreakerStatus}</span>
+            <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-850 space-y-1">
+              <span className="text-[11px] text-zinc-500 block">Status Akun:</span>
+              <div className="text-lg font-semibold text-emerald-400">
+                {account ? "Aktif" : "Menunggu Login"}
               </div>
-              <span className="text-[10px] text-neutral-500">Koneksi normal tanpa pembatasan</span>
+              <p className="text-[10px] text-zinc-500">Koneksi Graph API</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Threads Connect Modal */}
+      {/* Wizard Modal */}
       <ThreadsConnectModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onConnected={(acc) => {
           setAccount(acc);
+          setIsModalOpen(false);
           loadData();
-          loadKeys();
         }}
       />
     </div>

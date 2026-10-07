@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { UserProfile, NicheType, ToneType } from "../types";
 import { storage } from "../lib/storage";
-import { User, Save, CheckCircle2, Download, Upload, AlertCircle, Sparkles, Key, Link2, Unlink, ArrowRight } from "lucide-react";
+import { User, Save, CheckCircle2, Download, Upload, AlertCircle, Sparkles, Key, Link2, Unlink } from "lucide-react";
 import { threadsClient, ThreadsAccount } from "../services/threadsClient";
 import { ThreadsConnectModal } from "../components/ThreadsConnectModal";
 
@@ -22,7 +22,7 @@ const NICHES: { label: NicheType; desc: string; mode: "umum" | "hub" }[] = [
 ];
 
 const TONES: { label: ToneType; name: string; example: string }[] = [
-  { label: "santai", name: "Santai (Gue-Lo / Aku-Kamu)", example: "Gue baru sadar hal sepele ini..." },
+  { label: "santai", name: "Santai (Gue-Lo / Kasual)", example: "Gue baru sadar hal sepele ini..." },
   { label: "jujur", name: "Brutal Jujur / Reflektif", example: "Jujur, kesalahan terbesar gue adalah..." },
   { label: "lucu", name: "Humoris & Relatable", example: "Buka dompet isinya cuma doa restu..." },
   { label: "edukatif", name: "Edukatif Terstruktur", example: "Rumus 3 langkah praktis yang bisa dicoba hari ini:" },
@@ -73,9 +73,9 @@ export const ProfilePage: React.FC = () => {
     if (isOnboardingMode) {
       setTimeout(() => {
         navigate("/?welcome=true");
-      }, 1200);
+      }, 1000);
     } else {
-      setTimeout(() => setSavedSuccess(false), 3000);
+      setTimeout(() => setSavedSuccess(false), 2500);
     }
   };
 
@@ -97,47 +97,44 @@ export const ProfilePage: React.FC = () => {
       const content = event.target?.result as string;
       const success = await storage.importAllData(content);
       if (success) {
-        setImportStatus("Data berhasil dipulihkan!");
+        setImportStatus("Data profil dan antrean berhasil dipulihkan.");
         const fresh = await storage.getProfile();
         if (fresh) setProfile(fresh);
       } else {
         setImportStatus("Gagal membaca file JSON backup.");
       }
-      setTimeout(() => setImportStatus(null), 4000);
+      setTimeout(() => setImportStatus(null), 3000);
     };
     reader.readAsText(file);
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-3 sm:px-5 md:px-6 py-6 sm:py-8 pb-24">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 pb-28 space-y-6">
+      {/* Calm Header */}
+      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-3 border-b border-zinc-900 pb-5">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              <User className="w-5 h-5" />
-            </span>
-            <h1 className="text-xl sm:text-2xl font-black text-white">Profil & Niche Akun</h1>
-          </div>
-          <p className="text-xs sm:text-sm text-neutral-400 mt-1">
-            Konfigurasi niche, target audiens, dan gaya bahasa ini menjadi pedoman utama AI dalam meracik utas.
+          <h1 className="text-xl font-semibold text-zinc-100 tracking-tight">
+            Profil & Karakter Akun
+          </h1>
+          <p className="text-xs text-zinc-400 mt-1">
+            Konfigurasi niche, target pembaca, dan gaya bahasa sebagai panduan persona generator AI.
           </p>
         </div>
 
         {/* Backup Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-start sm:self-auto">
           <button
             type="button"
             onClick={handleExport}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 transition"
-            title="Download cadangan JSON semua riwayat & data"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-900 hover:bg-zinc-850 text-zinc-300 border border-zinc-800 transition cursor-pointer"
+            title="Download cadangan JSON semua data"
           >
-            <Download className="w-3.5 h-3.5 text-indigo-400" />
+            <Download className="w-3.5 h-3.5 text-zinc-400" />
             <span>Ekspor JSON</span>
           </button>
 
-          <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 cursor-pointer transition">
-            <Upload className="w-3.5 h-3.5 text-emerald-400" />
+          <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-900 hover:bg-zinc-850 text-zinc-300 border border-zinc-800 transition cursor-pointer">
+            <Upload className="w-3.5 h-3.5 text-zinc-400" />
             <span>Impor JSON</span>
             <input type="file" accept=".json" onChange={handleImport} className="hidden" />
           </label>
@@ -145,77 +142,81 @@ export const ProfilePage: React.FC = () => {
       </div>
 
       {importStatus && (
-        <div className="mb-6 p-3 rounded-xl bg-neutral-900 border border-neutral-800 text-xs text-neutral-300 flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-indigo-400" />
+        <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-zinc-400" />
           <span>{importStatus}</span>
         </div>
       )}
 
       {/* Onboarding Mode Step 2 Banner */}
       {isOnboardingMode && (
-        <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-indigo-950/60 to-zinc-900 border border-indigo-500/40 text-white space-y-3 shadow-lg shadow-indigo-950/30">
+        <div className="p-4 sm:p-5 rounded-2xl border border-zinc-700 bg-zinc-900/60 text-zinc-100 space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-semibold">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-zinc-800 text-zinc-200 text-xs font-medium">
               <Sparkles className="w-3.5 h-3.5" />
-              Langkah 2 dari 2: Personalisasi Karakter & Niche AI
+              Langkah 2: Niche & Karakter Akun
             </span>
             <span className="text-xs text-emerald-400 font-mono font-medium flex items-center gap-1">
               <CheckCircle2 className="w-3.5 h-3.5" />
               Akun Threads Terhubung
             </span>
           </div>
-          <div>
-            <h2 className="text-base sm:text-lg font-bold text-white">
-              Lengkapi Niche & Persona Akun Anda
-            </h2>
-            <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed mt-1">
-              AutoThreads membutuhkan informasi niche dan gaya bahasa ini agar AI dapat menyusun draf utas yang autentik dan bernada alami bagi audiens Anda. Klik tombol <strong>Simpan & Buka Akses Semua Tools</strong> di bawah setelah selesai.
-            </p>
-          </div>
+          <h2 className="text-sm font-semibold text-zinc-100">
+            Tentukan Niche & Persona Konten Anda
+          </h2>
+          <p className="text-xs text-zinc-400 leading-relaxed">
+            AutoThreads menyesuaikan perbendaharaan kata dan sudut pandang draf berdasarkan pengaturan ini. Klik tombol <strong>Simpan & Buka Akses Tools</strong> di bawah setelah selesai.
+          </p>
         </div>
       )}
 
       {savedSuccess && (
-        <div className="mb-6 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400 flex items-center gap-2 animate-in fade-in">
-          <CheckCircle2 className="w-4 h-4" />
-          <span>Profil berhasil disimpan ke penyimpanan lokal perangkat Anda.</span>
+        <div className="p-3 rounded-xl bg-zinc-900 border border-emerald-500/30 text-xs text-emerald-300 flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          <span>Pengaturan profil berhasil disimpan.</span>
         </div>
       )}
 
-      {/* Threads Official Account Connection Card */}
-      <div className="mb-8 p-5 rounded-2xl bg-neutral-900 border border-neutral-800">
+      {/* Threads Account Connection Card */}
+      <div className="p-4 sm:p-5 rounded-2xl border border-zinc-900 bg-zinc-900/20">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             {threadsAccount ? (
-              <img
-                src={threadsAccount.threads_profile_picture_url}
-                alt={threadsAccount.username}
-                className="w-12 h-12 rounded-full border border-neutral-700 object-cover"
-              />
+              threadsAccount.threads_profile_picture_url ? (
+                <img
+                  src={threadsAccount.threads_profile_picture_url}
+                  alt={threadsAccount.username}
+                  className="w-10 h-10 rounded-full border border-zinc-800 object-cover"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-zinc-800 text-zinc-200 flex items-center justify-center font-bold text-sm">
+                  @
+                </div>
+              )
             ) : (
-              <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-lg">
+              <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 flex items-center justify-center font-bold text-sm">
                 @
               </div>
             )}
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-white">
-                  {threadsAccount ? `@${threadsAccount.username}` : "Koneksi Akun Threads Asli"}
+                <span className="text-sm font-semibold text-zinc-100">
+                  {threadsAccount ? `@${threadsAccount.username}` : "Koneksi Akun Threads"}
                 </span>
                 <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-mono ${
                     threadsAccount
-                      ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                      : "bg-neutral-800 text-neutral-400"
+                      ? "bg-zinc-800 text-zinc-200 border border-zinc-700"
+                      : "bg-zinc-900 text-zinc-500 border border-zinc-850"
                   }`}
                 >
-                  {threadsAccount ? "Terhubung (Resmi)" : "Belum Terhubung"}
+                  {threadsAccount ? "Terhubung" : "Belum Terhubung"}
                 </span>
               </div>
-              <p className="text-xs text-neutral-400 mt-0.5">
+              <p className="text-xs text-zinc-400 mt-0.5">
                 {threadsAccount
-                  ? `${threadsAccount.name} • Token aktif untuk publikasi dan metrik`
-                  : "Gunakan Token Akses Meta atau Login OAuth untuk memposting utas langsung ke Threads."}
+                  ? `${threadsAccount.name || threadsAccount.username} · Token aktif untuk publikasi dan sinkronisasi`
+                  : "Hubungkan akun Threads Anda untuk mengaktifkan fitur publikasi langsung dan jadwal otomatis."}
               </p>
             </div>
           </div>
@@ -226,14 +227,14 @@ export const ProfilePage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(true)}
-                  className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-neutral-800 hover:bg-neutral-700 text-neutral-300 transition"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-900 hover:bg-zinc-850 text-zinc-300 border border-zinc-800 transition cursor-pointer"
                 >
                   Ganti Token
                 </button>
                 <button
                   type="button"
                   onClick={handleDisconnectThreads}
-                  className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-300 transition"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-rose-400 hover:text-rose-300 hover:bg-rose-950/20 transition cursor-pointer"
                 >
                   Putuskan
                 </button>
@@ -242,22 +243,24 @@ export const ProfilePage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/25 transition cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 transition cursor-pointer shadow-xs"
               >
                 <Key className="w-3.5 h-3.5" />
-                <span>Hubungkan Akun Threads</span>
+                <span>Hubungkan Akun</span>
               </button>
             )}
           </div>
         </div>
       </div>
 
-      <form onSubmit={handleSave} className="space-y-8">
-        {/* Pilih Niche Utama */}
-        <div className="p-6 rounded-2xl bg-neutral-900/60 border border-neutral-800 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">1. Pilih Niche Konten Anda</h3>
-            <span className="text-[11px] text-neutral-400">12 Pilar Pola Tersedia</span>
+      <form onSubmit={handleSave} className="space-y-6">
+        {/* Niche Selection */}
+        <div className="p-5 rounded-2xl border border-zinc-900 bg-zinc-900/20 space-y-4">
+          <div className="flex items-center justify-between text-xs">
+            <h2 className="font-semibold text-zinc-200 uppercase tracking-wider text-[11px]">
+              1. Pilih Niche Utama
+            </h2>
+            <span className="text-zinc-500 font-mono text-[11px]">12 Pilar Tersedia</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
@@ -268,25 +271,25 @@ export const ProfilePage: React.FC = () => {
                   type="button"
                   key={item.label}
                   onClick={() => setProfile({ ...profile, niche: item.label, modePreference: item.mode })}
-                  className={`text-left p-3 rounded-xl border transition-all ${
+                  className={`text-left p-3 rounded-xl border transition cursor-pointer ${
                     isSelected
-                      ? "bg-indigo-600/15 border-indigo-500 text-white shadow-sm ring-1 ring-indigo-500/30"
-                      : "bg-neutral-950/60 border-neutral-800/80 text-neutral-400 hover:border-neutral-700 hover:text-neutral-200"
+                      ? "bg-zinc-900 border-zinc-600 text-zinc-100"
+                      : "bg-zinc-950 border-zinc-900 text-zinc-400 hover:border-zinc-800 hover:text-zinc-300"
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold text-white">{item.label}</span>
+                    <span className="text-xs font-semibold text-zinc-200">{item.label}</span>
                     <span
-                      className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${
+                      className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
                         item.mode === "hub"
-                          ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
-                          : "bg-neutral-800 text-neutral-400"
+                          ? "bg-zinc-850 text-zinc-300"
+                          : "bg-zinc-900 text-zinc-500"
                       }`}
                     >
-                      {item.mode === "hub" ? "Hub Kreator" : "Umum"}
+                      {item.mode === "hub" ? "Hub" : "Umum"}
                     </span>
                   </div>
-                  <p className="text-[11px] text-neutral-400 leading-snug line-clamp-2">{item.desc}</p>
+                  <p className="text-[11px] text-zinc-500 leading-snug line-clamp-2">{item.desc}</p>
                 </button>
               );
             })}
@@ -296,24 +299,28 @@ export const ProfilePage: React.FC = () => {
         {/* Target Audiens & Tone */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Target Audiens */}
-          <div className="p-6 rounded-2xl bg-neutral-900/60 border border-neutral-800 space-y-3">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">2. Siapa Target Audiensmu?</h3>
-            <p className="text-xs text-neutral-400">
-              Jelaskan rentang usia, profesi, atau keresahan utama pembaca yang ingin lo rangkul.
+          <div className="p-5 rounded-2xl border border-zinc-900 bg-zinc-900/20 space-y-2.5">
+            <h2 className="font-semibold text-zinc-200 uppercase tracking-wider text-[11px]">
+              2. Target Audiens
+            </h2>
+            <p className="text-[11px] text-zinc-400">
+              Rentang usia, latar belakang, atau keresahan utama pembaca yang ingin Anda rangkul.
             </p>
             <textarea
               rows={3}
               value={profile.targetAudience}
               onChange={(e) => setProfile({ ...profile, targetAudience: e.target.value })}
-              className="w-full p-3 rounded-xl bg-neutral-950 border border-neutral-800 text-xs text-white placeholder-neutral-500 focus:outline-hidden focus:border-indigo-500 transition"
-              placeholder="Contoh: Karyawan 20-an tahun yang pengen punya side-income tanpa modal besar..."
+              className="w-full p-3 rounded-xl bg-zinc-950 border border-zinc-850 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-hidden focus:border-zinc-600 leading-relaxed transition"
+              placeholder="Contoh: Karyawan muda usia 20-30 tahun yang ingin belajar mengelola keuangan tanpa rasa dihakimi..."
             />
           </div>
 
           {/* Tone Suara */}
-          <div className="p-6 rounded-2xl bg-neutral-900/60 border border-neutral-800 space-y-3">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">3. Tone & Gaya Bicara</h3>
-            <p className="text-xs text-neutral-400">Pilih karakter tulisan yang paling pas dengan citra akun lo.</p>
+          <div className="p-5 rounded-2xl border border-zinc-900 bg-zinc-900/20 space-y-2.5">
+            <h2 className="font-semibold text-zinc-200 uppercase tracking-wider text-[11px]">
+              3. Karakter Suara & Nada Bicara
+            </h2>
+            <p className="text-[11px] text-zinc-400">Pilih gaya bertutur yang paling sesuai dengan citra akun Anda.</p>
             <div className="grid grid-cols-2 gap-2">
               {TONES.map((t) => {
                 const isSelected = profile.tone === t.label;
@@ -322,14 +329,14 @@ export const ProfilePage: React.FC = () => {
                     type="button"
                     key={t.label}
                     onClick={() => setProfile({ ...profile, tone: t.label })}
-                    className={`p-2.5 rounded-xl border text-left transition ${
+                    className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
                       isSelected
-                        ? "bg-indigo-600/15 border-indigo-500 text-white"
-                        : "bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700"
+                        ? "bg-zinc-900 border-zinc-600 text-zinc-100"
+                        : "bg-zinc-950 border-zinc-900 text-zinc-400 hover:border-zinc-800 hover:text-zinc-300"
                     }`}
                   >
-                    <div className="text-xs font-bold text-white">{t.name}</div>
-                    <div className="text-[10px] text-neutral-400 italic mt-0.5 truncate">"{t.example}"</div>
+                    <div className="text-xs font-semibold text-zinc-200">{t.name}</div>
+                    <div className="text-[10px] text-zinc-500 italic mt-0.5 truncate">"{t.example}"</div>
                   </button>
                 );
               })}
@@ -337,29 +344,31 @@ export const ProfilePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Produk / Jasa & Larangan Topik */}
-        <div className="p-6 rounded-2xl bg-neutral-900/60 border border-neutral-800 space-y-4">
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider">4. Penawaran & Batasan Konten</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-neutral-300 mb-1">
-                Produk / Jasa yang Lo Punya (Opsional):
+        {/* Produk & Larangan Topik */}
+        <div className="p-5 rounded-2xl border border-zinc-900 bg-zinc-900/20 space-y-4">
+          <h2 className="font-semibold text-zinc-200 uppercase tracking-wider text-[11px]">
+            4. Penawaran & Batasan Konten
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div className="space-y-1.5">
+              <label className="block font-medium text-zinc-300">
+                Produk / Jasa yang Anda Miliki (Opsional):
               </label>
               <input
                 type="text"
                 value={profile.productsServices || ""}
                 onChange={(e) => setProfile({ ...profile, productsServices: e.target.value })}
-                className="w-full p-2.5 rounded-xl bg-neutral-950 border border-neutral-800 text-xs text-white placeholder-neutral-600 focus:outline-hidden focus:border-indigo-500"
-                placeholder="Contoh: Template Notion Finansial Rp49rb, Jasa Web Design"
+                className="w-full p-2.5 rounded-xl bg-zinc-950 border border-zinc-850 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-hidden focus:border-zinc-600"
+                placeholder="Contoh: Template Notion Finansial, Jasa Desain Grafis"
               />
-              <span className="text-[10px] text-neutral-400 mt-1 block">
-                Digunakan AI saat meracik konten berlabel Konversi atau Soft-selling di reply ke-2.
+              <span className="text-[10px] text-zinc-500 block">
+                Disertakan AI saat menyusun CTA di reply #2 pada konten bertipe konversi.
               </span>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-neutral-300 mb-1">
-                Topik yang Pantang / Dilarang Disebut:
+            <div className="space-y-1.5">
+              <label className="block font-medium text-zinc-300">
+                Topik yang Dilarang (Filter AI):
               </label>
               <input
                 type="text"
@@ -370,11 +379,11 @@ export const ProfilePage: React.FC = () => {
                     forbiddenTopics: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
                   })
                 }
-                className="w-full p-2.5 rounded-xl bg-neutral-950 border border-neutral-800 text-xs text-white placeholder-neutral-600 focus:outline-hidden focus:border-indigo-500"
-                placeholder="Pisahkan dengan koma: politik, drama seleb, pinjol"
+                className="w-full p-2.5 rounded-xl bg-zinc-950 border border-zinc-850 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-hidden focus:border-zinc-600"
+                placeholder="Pisahkan dengan koma: politik praktis, gosip artis, pinjol ilegal"
               />
-              <span className="text-[10px] text-neutral-400 mt-1 block">
-                AI akan secara ketat memblokir topik-topik sensitif ini.
+              <span className="text-[10px] text-zinc-500 block">
+                AI akan secara ketat memblokir topik-topik sensitif ini dari seluruh draf.
               </span>
             </div>
           </div>
@@ -384,7 +393,7 @@ export const ProfilePage: React.FC = () => {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
           {isOnboardingMode ? (
             <p className="text-xs text-zinc-400">
-              Setelah menyimpan profil, seluruh fitur dan tools AutoThreads akan langsung terbuka.
+              Setelah menyimpan profil, seluruh fitur dan tools AutoThreads akan langsung aktif.
             </p>
           ) : (
             <div />
@@ -399,12 +408,12 @@ export const ProfilePage: React.FC = () => {
             )}
             <button
               type="submit"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-xs sm:text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/25 transition active:scale-95"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 transition cursor-pointer shadow-xs active:scale-[0.99]"
             >
-              <Save className="w-4 h-4" />
+              <Save className="w-3.5 h-3.5" />
               <span>
                 {isOnboardingMode
-                  ? "Simpan & Buka Akses Semua Tools →"
+                  ? "Simpan & Buka Akses Tools →"
                   : "Simpan Pengaturan Profil"}
               </span>
             </button>
