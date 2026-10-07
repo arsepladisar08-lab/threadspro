@@ -9,7 +9,7 @@ import {
   BarChart3,
   Database,
   ShieldCheck,
-  Key,
+  User,
 } from "lucide-react";
 import { UserProfile } from "../types";
 
@@ -25,23 +25,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const location = useLocation();
 
   const mainNav = [
-    { path: "/", label: "Generator Utas", icon: Sparkles },
-    { path: "/kalender", label: "Kalender Konten", icon: Calendar },
-    { path: "/cek", label: "Cek Utas", icon: CheckSquare },
-    { path: "/balas", label: "Balas Komen", icon: MessageSquareText },
+    { path: "/", label: "Generator Utas", icon: Sparkles, shortcut: "Alt+1" },
+    { path: "/kalender", label: "Kalender Konten", icon: Calendar, shortcut: "Alt+2" },
+    { path: "/cek", label: "Cek Utas", icon: CheckSquare, shortcut: "Alt+3" },
+    { path: "/balas", label: "Balas Komen", icon: MessageSquareText, shortcut: "Alt+4" },
     { path: "/ulas", label: "Ulas Utas", icon: Search },
-    { path: "/metrik", label: "Metrik Tracker", icon: BarChart3 },
+    { path: "/metrik", label: "Metrik Tracker", icon: BarChart3, shortcut: "Alt+5" },
     { path: "/bank", label: "Bank Referensi", icon: Database },
   ];
 
   const secondaryNav = [
-    { path: "/admin/api-lab", label: "Kunci API & Lab", icon: Key },
+    { path: "/profil", label: "Pengaturan Profil", icon: User },
     { path: "/onboarding", label: "Onboarding Threads", icon: ShieldCheck },
   ];
 
   return (
     <aside
-      className={`hidden lg:flex flex-col shrink-0 border-r border-zinc-900 bg-zinc-950 transition-all duration-200 ease-in-out select-none relative z-30 ${
+      className={`hidden lg:flex flex-col shrink-0 border-r border-zinc-200 dark:border-zinc-850 bg-white dark:bg-zinc-950 transition-all duration-200 ease-in-out select-none relative z-30 ${
         isCollapsed ? "w-14" : "w-60"
       }`}
       aria-label="Sidebar Navigasi"
@@ -58,23 +58,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
               to={item.path}
               className={`flex items-center gap-3 px-2.5 py-2 rounded-lg text-xs font-medium transition group relative ${
                 isActive
-                  ? "bg-zinc-900 text-zinc-100 font-semibold"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/40"
-              } ${isCollapsed ? "justify-center px-0" : ""}`}
-              title={isCollapsed ? item.label : undefined}
+                  ? "bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 font-semibold"
+                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
+              } ${isCollapsed ? "justify-center px-0" : "justify-between"}`}
+              title={isCollapsed ? `${item.label} (${item.shortcut || ""})` : undefined}
             >
-              <Icon
-                className={`w-4 h-4 shrink-0 transition ${
-                  isActive ? "text-zinc-100" : "text-zinc-400 group-hover:text-zinc-200"
-                }`}
-              />
+              <div className="flex items-center gap-3 min-w-0">
+                <Icon
+                  className={`w-4 h-4 shrink-0 transition ${
+                    isActive
+                      ? "text-zinc-900 dark:text-zinc-100"
+                      : "text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-200"
+                  }`}
+                />
+                {!isCollapsed && <span className="truncate">{item.label}</span>}
+              </div>
 
-              {!isCollapsed && <span className="truncate">{item.label}</span>}
+              {!isCollapsed && item.shortcut && (
+                <kbd className="hidden xl:inline-block px-1.5 py-0.2 rounded bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-750 text-[9px] font-mono text-zinc-400 dark:text-zinc-500">
+                  {item.shortcut}
+                </kbd>
+              )}
 
               {/* Floating Tooltip in Collapsed Mode */}
               {isCollapsed && (
-                <div className="absolute left-full ml-2 px-2 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 font-medium opacity-0 group-hover:opacity-100 pointer-events-none transition whitespace-nowrap z-50 shadow-md">
-                  {item.label}
+                <div className="absolute left-full ml-2 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-xs text-white font-medium opacity-0 group-hover:opacity-100 pointer-events-none transition whitespace-nowrap z-50 shadow-md flex items-center gap-2">
+                  <span>{item.label}</span>
+                  {item.shortcut && (
+                    <kbd className="px-1 py-0.2 rounded bg-zinc-800 text-[10px] text-zinc-400 font-mono">
+                      {item.shortcut}
+                    </kbd>
+                  )}
                 </div>
               )}
             </Link>
@@ -82,12 +96,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
 
         {/* Subtle Divider */}
-        <div className="my-2 border-t border-zinc-900" />
+        <div className="my-2 border-t border-zinc-200 dark:border-zinc-850" />
 
         {/* Secondary Nav */}
         {secondaryNav.map((item) => {
           const Icon = item.icon;
-          const isActive = location.pathname === item.path;
+          const isActive = item.path.includes("?")
+            ? `${location.pathname}${location.search}` === item.path
+            : location.pathname === item.path;
 
           return (
             <Link
@@ -95,20 +111,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
               to={item.path}
               className={`flex items-center gap-3 px-2.5 py-2 rounded-lg text-xs font-medium transition group relative ${
                 isActive
-                  ? "bg-zinc-900 text-zinc-100 font-semibold"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/40"
+                  ? "bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 font-semibold"
+                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
               } ${isCollapsed ? "justify-center px-0" : ""}`}
               title={isCollapsed ? item.label : undefined}
             >
               <Icon
                 className={`w-4 h-4 shrink-0 transition ${
-                  isActive ? "text-zinc-100" : "text-zinc-400 group-hover:text-zinc-200"
+                  isActive
+                    ? "text-zinc-900 dark:text-zinc-100"
+                    : "text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-200"
                 }`}
               />
               {!isCollapsed && <span className="truncate">{item.label}</span>}
 
               {isCollapsed && (
-                <div className="absolute left-full ml-2 px-2 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 font-medium opacity-0 group-hover:opacity-100 pointer-events-none transition whitespace-nowrap z-50 shadow-md">
+                <div className="absolute left-full ml-2 px-2 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-xs text-white font-medium opacity-0 group-hover:opacity-100 pointer-events-none transition whitespace-nowrap z-50 shadow-md">
                   {item.label}
                 </div>
               )}
@@ -119,16 +137,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Footer & Niche status */}
       {profile?.niche && (
-        <div className="p-2 border-t border-zinc-900 bg-zinc-950">
+        <div className="p-2 border-t border-zinc-200 dark:border-zinc-850 bg-zinc-50/50 dark:bg-zinc-950">
           {!isCollapsed ? (
             <Link
               to="/profil"
-              className="flex items-center justify-between p-2 rounded-lg hover:bg-zinc-900/60 transition text-xs text-zinc-400 hover:text-zinc-200"
+              className="flex items-center justify-between p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900/60 transition text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
               title="Pengaturan Niche & Karakter Akun"
             >
               <div className="min-w-0 pr-2">
-                <span className="text-[10px] text-zinc-500 block">Niche:</span>
-                <span className="font-medium text-zinc-300 truncate block">
+                <span className="text-[10px] text-zinc-400 dark:text-zinc-500 block">Niche:</span>
+                <span className="font-medium text-zinc-800 dark:text-zinc-300 truncate block">
                   {profile.niche}
                 </span>
               </div>
@@ -137,7 +155,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           ) : (
             <Link
               to="/profil"
-              className="w-full flex justify-center py-2 text-zinc-500 hover:text-zinc-300 transition"
+              className="w-full flex justify-center py-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition"
               title={`Niche: ${profile.niche}`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />

@@ -10,6 +10,7 @@ import { Sidebar } from "./components/Sidebar";
 import { BottomNav } from "./components/BottomNav";
 import { MobileDrawer } from "./components/MobileDrawer";
 import { UserGuideModal } from "./components/UserGuideModal";
+import { CommandPalette } from "./components/CommandPalette";
 import { GeneratorPage } from "./pages/GeneratorPage";
 import { CalendarPage } from "./pages/CalendarPage";
 import { CheckerPage } from "./pages/CheckerPage";
@@ -18,11 +19,12 @@ import { ReviewPage } from "./pages/ReviewPage";
 import { MetricsPage } from "./pages/MetricsPage";
 import { BankPage } from "./pages/BankPage";
 import { ProfilePage } from "./pages/ProfilePage";
-import { ThreadsApiLabPage } from "./pages/ThreadsApiLabPage";
 import { AuthCallbackPage } from "./pages/AuthCallbackPage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { storage } from "./lib/storage";
 import { UserProfile } from "./types";
+import { useTheme } from "./hooks/useTheme";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 
 interface ProtectedRouteProps {
   isOnboarded: boolean | null;
@@ -44,6 +46,7 @@ function ProtectedRoute({ isOnboarded, children }: ProtectedRouteProps) {
 }
 
 function AppContent() {
+  useTheme();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isOnboarded, setIsOnboarded] = useState<boolean | null>(null);
   // Default collapsed/hidden on tablet & desktop as required
@@ -53,6 +56,7 @@ function AppContent() {
   });
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -83,32 +87,24 @@ function AppContent() {
     });
   };
 
-  // Global shortcut '?' untuk membuka panduan interaktif
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Abaikan jika sedang mengetik di input atau textarea
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement ||
-        (e.target as HTMLElement).isContentEditable
-      ) {
-        return;
-      }
-      if (e.key === "?" || (e.shiftKey && e.key === "/")) {
-        e.preventDefault();
-        setIsGuideOpen(true);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  // Keyboard Shortcuts Global Engine (⌘B, ⌘K, ?, Alt+1..5, Esc)
+  useKeyboardShortcuts({
+    onToggleSidebar: handleToggleSidebar,
+    onOpenCommandPalette: () => setIsCommandPaletteOpen(true),
+    onOpenGuide: () => setIsGuideOpen(true),
+    onCloseModals: () => {
+      setIsCommandPaletteOpen(false);
+      setIsGuideOpen(false);
+      setIsMobileDrawerOpen(false);
+    },
+  });
 
   const isOnboardingRoute = location.pathname === "/onboarding";
 
   // Mode rute Onboarding: tampilan terfokus tanpa distraksi navigasi
   if (isOnboardingRoute) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans antialiased selection:bg-indigo-500 selection:text-white">
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col font-sans antialiased selection:bg-indigo-500 selection:text-white transition-colors duration-200">
         <Routes>
           <Route path="/onboarding" element={<OnboardingPage />} />
           <Route path="*" element={<Navigate to="/onboarding" replace />} />
@@ -118,13 +114,14 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans antialiased selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col font-sans antialiased selection:bg-indigo-500 selection:text-white transition-colors duration-200">
       {/* Top Navbar */}
       <Navbar
         isSidebarCollapsed={isSidebarCollapsed}
         onToggleSidebar={handleToggleSidebar}
         onOpenGuide={() => setIsGuideOpen(true)}
         onOpenMobileMenu={() => setIsMobileDrawerOpen(true)}
+        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
       />
 
       {/* Main Work Area with Sidebar for Desktop */}
@@ -206,9 +203,10 @@ function AppContent() {
             <Route path="/profil" element={<ProfilePage />} />
             <Route path="/settings" element={<ProfilePage />} />
             <Route path="/pengaturan" element={<ProfilePage />} />
-            <Route path="/admin/api-lab" element={<ThreadsApiLabPage />} />
-            <Route path="/api-key" element={<ThreadsApiLabPage />} />
-            <Route path="/gemini" element={<ThreadsApiLabPage />} />
+            <Route path="/api-lab" element={<Navigate to="/profil" replace />} />
+            <Route path="/admin/api-lab" element={<Navigate to="/profil" replace />} />
+            <Route path="/api-key" element={<Navigate to="/profil" replace />} />
+            <Route path="/gemini" element={<Navigate to="/profil" replace />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/onboarding" element={<OnboardingPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
@@ -234,6 +232,17 @@ function AppContent() {
         onSelectAction={(path) => {
           navigate(path);
           setIsGuideOpen(false);
+        }}
+      />
+
+      {/* Global Command Palette (⌘+K) */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onToggleSidebar={handleToggleSidebar}
+        onOpenGuide={() => {
+          setIsCommandPaletteOpen(false);
+          setIsGuideOpen(true);
         }}
       />
     </div>

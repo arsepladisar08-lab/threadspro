@@ -396,6 +396,34 @@ export const GeneratorPage: React.FC = () => {
 
   const currentVariant = result?.variants?.[activeVariantIdx];
 
+  // Keyboard Shortcuts khusus di Generator:
+  // - Ctrl/Cmd + Enter: Trigger generate
+  // - Ctrl/Cmd + Shift + C: Salin semua post dari varian aktif
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isModifier = e.ctrlKey || e.metaKey;
+
+      if (isModifier && e.key === "Enter") {
+        if (!isGenerating && rawIdea.trim()) {
+          e.preventDefault();
+          handleGenerate(e as any);
+        }
+        return;
+      }
+
+      if (isModifier && e.shiftKey && (e.key === "c" || e.key === "C")) {
+        if (currentVariant) {
+          e.preventDefault();
+          handleCopyAll(currentVariant);
+        }
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isGenerating, rawIdea, currentVariant, handleGenerate, handleCopyAll]);
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 pb-28">
       {/* Calm Header */}
@@ -588,15 +616,21 @@ export const GeneratorPage: React.FC = () => {
             <button
               type="submit"
               disabled={isGenerating || !rawIdea.trim()}
-              className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 transition-all disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-[0.99]"
+              title="Fusi Ide & Rilis 3 Varian Utas [⌘+Enter]"
+              className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold bg-zinc-900 hover:bg-black text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-950 transition-all disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-[0.99]"
             >
               {isGenerating ? (
                 <>
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-zinc-700" />
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-zinc-400 dark:text-zinc-700" />
                   <span>{currentStep || "Memproses..."}</span>
                 </>
               ) : (
-                <span>Fusi Ide & Rilis 3 Varian Utas</span>
+                <div className="flex items-center gap-2">
+                  <span>Fusi Ide & Rilis 3 Varian Utas</span>
+                  <kbd className="hidden sm:inline-block px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 dark:bg-zinc-200 dark:text-zinc-800 font-mono text-[10px] font-semibold">
+                    ⌘↵
+                  </kbd>
+                </div>
               )}
             </button>
           </form>
@@ -852,10 +886,14 @@ export const GeneratorPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleCopyAll(currentVariant)}
-                        className="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-850 text-zinc-300 text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
+                        title="Salin Semua Post [⌘+⇧+C]"
+                        className="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-850 dark:bg-zinc-900 dark:hover:bg-zinc-850 text-zinc-300 text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
                       >
                         {copiedAll ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                         <span>{copiedAll ? "Tersalin" : "Salin Semua"}</span>
+                        <kbd className="hidden sm:inline-block ml-1 px-1.5 py-0.2 rounded bg-zinc-800 border border-zinc-700 text-[10px] font-mono text-zinc-400">
+                          ⌘⇧C
+                        </kbd>
                       </button>
 
                       <button

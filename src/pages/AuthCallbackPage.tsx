@@ -39,7 +39,7 @@ export const AuthCallbackPage: React.FC = () => {
         } else {
           // Jika dibuka di tab mandiri, arahkan kembali ke aplikasi
           setTimeout(() => {
-            window.location.href = "/admin/api-lab";
+            window.location.href = "/profil?tab=api";
           }, 1500);
         }
       } else {

@@ -12,6 +12,21 @@
     <script>
       (function() {
         try {
+          var saved = localStorage.getItem('autothreads_theme') || 'system';
+          var isDark = saved === 'dark' || (saved === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.setAttribute('data-theme', 'dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.setAttribute('data-theme', 'light');
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <script>
+      (function() {
+        try {
           var _origFetch = window.fetch ? window.fetch.bind(window) : undefined;
           var _currentFetch = _origFetch;
           Object.defineProperty(window, 'fetch', {
