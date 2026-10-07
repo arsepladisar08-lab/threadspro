@@ -65,7 +65,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 md:hidden flex justify-end">
+    <div className="fixed inset-0 z-50 lg:hidden flex justify-end">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity animate-in fade-in"

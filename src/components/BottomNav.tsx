@@ -1,12 +1,12 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Sparkles, Calendar, CheckSquare, MessageSquareText, Menu } from "lucide-react";
+import { Sparkles, Calendar, CheckSquare, MessageSquareText, BarChart3 } from "lucide-react";
 
 interface BottomNavProps {
-  onOpenMenu: () => void;
+  onOpenMenu?: () => void;
 }
 
-export const BottomNav: React.FC<BottomNavProps> = ({ onOpenMenu }) => {
+export const BottomNav: React.FC<BottomNavProps> = () => {
   const location = useLocation();
 
   const primaryItems = [
@@ -14,11 +14,12 @@ export const BottomNav: React.FC<BottomNavProps> = ({ onOpenMenu }) => {
     { path: "/kalender", label: "Kalender", icon: Calendar },
     { path: "/cek", label: "Cek Utas", icon: CheckSquare },
     { path: "/balas", label: "Balas", icon: MessageSquareText },
+    { path: "/metrik", label: "Metrik", icon: BarChart3 },
   ];
 
   return (
     <nav
-      className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/90 backdrop-blur-xl border-t border-zinc-800/80 pb-safe shadow-lg"
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/90 backdrop-blur-xl border-t border-zinc-800/80 pb-safe shadow-lg"
       aria-label="Navigasi Bawah Mobile"
     >
       <div className="grid grid-cols-5 h-16 max-w-md mx-auto items-center px-1">
@@ -50,19 +51,6 @@ export const BottomNav: React.FC<BottomNavProps> = ({ onOpenMenu }) => {
             </Link>
           );
         })}
-
-        {/* Menu / Lainnya Drawer Trigger */}
-        <button
-          type="button"
-          onClick={onOpenMenu}
-          className="flex flex-col items-center justify-center h-full gap-1 text-zinc-500 hover:text-zinc-200 transition-all active:scale-95 cursor-pointer"
-          aria-label="Buka menu lengkap"
-        >
-          <div className="flex items-center justify-center p-1 rounded-xl">
-            <Menu className="w-5 h-5" />
-          </div>
-          <span className="text-[10px] tracking-tight">Menu</span>
-        </button>
       </div>
     </nav>
   );

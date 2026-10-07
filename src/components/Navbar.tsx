@@ -37,10 +37,10 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="w-full px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
         {/* Left Side: Sidebar Toggle & Brand */}
         <div className="flex items-center gap-2.5 sm:gap-3">
-          {/* Desktop/Tablet Sidebar Toggle Button */}
+          {/* Desktop Sidebar Toggle Button */}
           <button
             onClick={onToggleSidebar}
-            className="hidden md:flex p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-900 border border-transparent hover:border-zinc-800 transition cursor-pointer"
+            className="hidden lg:flex p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-900 border border-transparent hover:border-zinc-800 transition cursor-pointer"
             title={isSidebarCollapsed ? "Buka Sidebar Lengkap" : "Sembunyikan Sidebar"}
             aria-label="Toggle Sidebar"
           >
@@ -51,10 +51,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </button>
 
-          {/* Mobile Menu Button */}
+          {/* Mobile & Tablet Menu Button */}
           <button
             onClick={onOpenMobileMenu}
-            className="md:hidden p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-900 transition cursor-pointer"
+            className="lg:hidden p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-900 transition cursor-pointer"
             aria-label="Buka Menu"
           >
             <Menu className="w-5 h-5" />

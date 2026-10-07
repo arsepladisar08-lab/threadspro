@@ -76,9 +76,9 @@ function AppContent() {
         onOpenMobileMenu={() => setIsMobileDrawerOpen(true)}
       />
 
-      {/* Main Work Area with Sidebar for Tablet & Desktop */}
+      {/* Main Work Area with Sidebar for Desktop */}
       <div className="flex-1 flex w-full min-h-[calc(100vh-4rem)]">
-        {/* Toggleable Collapsed Sidebar (Tablet & Desktop) */}
+        {/* Toggleable Collapsed Sidebar (Desktop) */}
         <Sidebar
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={handleToggleSidebar}
@@ -87,7 +87,7 @@ function AppContent() {
         />
 
         {/* Dynamic Route Content */}
-        <main className="flex-1 min-w-0 w-full overflow-x-hidden pb-20 md:pb-8">
+        <main className="flex-1 min-w-0 w-full overflow-x-hidden pb-20 lg:pb-8">
           <Routes>
             <Route path="/" element={<GeneratorPage />} />
             <Route path="/generator" element={<Navigate to="/" replace />} />
