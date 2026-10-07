@@ -8,15 +8,5 @@
       "source": "/(.*)",
       "destination": "/index.html"
     }
-  ],
-  "crons": [
-    {
-      "path": "/api/cron/daily",
-      "schedule": "0 20 * * *"
-    },
-    {
-      "path": "/api/cron/publish",
-      "schedule": "*/15 * * * *"
-    }
   ]
 }
