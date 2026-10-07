@@ -6,6 +6,7 @@ import { auditVariant, autoFixVariant } from "../lib/guard";
 import { generateJSON, generateFactsAssistance } from "../services/ai";
 import { ProvenanceBadge } from "../components/ProvenanceBadge";
 import { PublishModal } from "../components/PublishModal";
+import { VisualCardGenerator, VisualTheme, AspectRatio } from "../components/VisualCardGenerator";
 import {
   Sparkles,
   Target,
@@ -31,6 +32,9 @@ import {
   Edit3,
   X,
   Save,
+  Palette,
+  Layers,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -58,6 +62,7 @@ export const GeneratorPage: React.FC = () => {
   const [copiedAll, setCopiedAll] = useState(false);
   const [postedSuccess, setPostedSuccess] = useState(false);
   const [publishModalVariant, setPublishModalVariant] = useState<VariantOutput | null>(null);
+  const [visualGeneratorVariant, setVisualGeneratorVariant] = useState<VariantOutput | null>(null);
   const [showTrace, setShowTrace] = useState(true);
 
   // File Upload State
@@ -291,6 +296,27 @@ export const GeneratorPage: React.FC = () => {
       setEditNoticeToast("Hook pembuka berhasil diterapkan ke Post #1!");
       setTimeout(() => setEditNoticeToast(null), 2500);
     }
+  };
+
+  const handleApplyVisualSlides = async (
+    slidesBase64: string[],
+    meta: { theme: VisualTheme; aspectRatio: AspectRatio }
+  ) => {
+    if (!result || !result.variants || !result.variants[activeVariantIdx]) return;
+    const updatedVariants = [...result.variants];
+    const current = { ...updatedVariants[activeVariantIdx] };
+    current.visual_slides = slidesBase64;
+    current.visual_theme = meta.theme;
+    current.visual_aspect_ratio = meta.aspectRatio;
+    updatedVariants[activeVariantIdx] = current;
+    const updatedResult: GenerationOutput = {
+      ...result,
+      variants: updatedVariants,
+    };
+    setResult(updatedResult);
+    await storage.saveGeneration(updatedResult);
+    setEditNoticeToast(`✨ ${slidesBase64.length} Slide Visual siap diterbitkan!`);
+    setTimeout(() => setEditNoticeToast(null), 3000);
   };
 
   const handleGenerate = async (e: React.FormEvent) => {
@@ -1141,25 +1167,78 @@ export const GeneratorPage: React.FC = () => {
                     </div>
                   )}
 
+                  {/* Visual Carousel Preview Strip (Jika Ada Slide Tersimpan) */}
+                  {currentVariant.visual_slides && currentVariant.visual_slides.length > 0 && (
+                    <div className="p-3.5 rounded-2xl bg-indigo-950/20 border border-indigo-500/30 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-indigo-300 flex items-center gap-1.5">
+                          <Palette className="w-3.5 h-3.5 text-indigo-400" />
+                          <span>Slide Visual Siap Terbit ({currentVariant.visual_slides.length} Slide Carousel):</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setVisualGeneratorVariant(currentVariant)}
+                          className="text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 underline cursor-pointer"
+                        >
+                          Ubah Desain
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                        {currentVariant.visual_slides.map((sImg, sIdx) => (
+                          <div
+                            key={sIdx}
+                            className="relative shrink-0 w-16 h-16 rounded-xl border border-indigo-500/40 overflow-hidden bg-black shadow-xs cursor-pointer hover:scale-105 transition"
+                            onClick={() => setVisualGeneratorVariant(currentVariant)}
+                            title={`Slide #${sIdx + 1} - Klik untuk edit`}
+                          >
+                            <img src={sImg} alt={`Slide ${sIdx + 1}`} className="w-full h-full object-cover" />
+                            <span className="absolute bottom-0.5 right-0.5 px-1 py-0.2 rounded text-[8px] font-bold bg-black/70 text-white">
+                              #{sIdx + 1}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Action Bar */}
                   <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-neutral-800">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
                         onClick={() => handleCopyAll(currentVariant)}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-neutral-800 hover:bg-neutral-700 text-white transition active:scale-95"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-neutral-800 hover:bg-neutral-700 text-white transition active:scale-95 cursor-pointer"
                       >
                         {copiedAll ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                        <span>{copiedAll ? "Tersalin!" : "Salin Semua Post"}</span>
+                        <span>{copiedAll ? "Tersalin!" : "Salin Semua"}</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => handleMarkAsPosted(currentVariant)}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-300 transition"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-300 transition cursor-pointer"
                       >
                         <Check className="w-3.5 h-3.5 text-indigo-400" />
                         <span>{postedSuccess ? "Ditandai!" : "Tandai Diposting"}</span>
+                      </button>
+
+                      {/* Tombol Buat Slide Visual & Carousel */}
+                      <button
+                        type="button"
+                        onClick={() => setVisualGeneratorVariant(currentVariant)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition active:scale-95 cursor-pointer ${
+                          currentVariant.visual_slides && currentVariant.visual_slides.length > 0
+                            ? "bg-indigo-950/50 border-indigo-500/50 text-indigo-300 hover:bg-indigo-900/50"
+                            : "bg-neutral-900 border-neutral-800 hover:border-neutral-700 text-neutral-300 hover:text-white"
+                        }`}
+                        title="Buat slide visual atau album carousel untuk postingan Threads ini"
+                      >
+                        <Palette className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>
+                          {currentVariant.visual_slides && currentVariant.visual_slides.length > 0
+                            ? `Visual (${currentVariant.visual_slides.length} Slide)`
+                            : "Slide Visual / Carousel"}
+                        </span>
                       </button>
                     </div>
 
@@ -1199,6 +1278,16 @@ export const GeneratorPage: React.FC = () => {
         </div>
       )}
 
+      {/* Visual Card Generator Modal */}
+      {visualGeneratorVariant && (
+        <VisualCardGenerator
+          variant={visualGeneratorVariant}
+          isOpen={!!visualGeneratorVariant}
+          onClose={() => setVisualGeneratorVariant(null)}
+          onApplyToVariant={handleApplyVisualSlides}
+        />
+      )}
+
       {/* Publish Modal */}
       {publishModalVariant && (
         <PublishModal
@@ -1207,6 +1296,10 @@ export const GeneratorPage: React.FC = () => {
           onClose={() => setPublishModalVariant(null)}
           onSuccess={(permalink) => {
             handleMarkAsPosted(publishModalVariant);
+          }}
+          onRequestOpenVisualGenerator={() => {
+            setPublishModalVariant(null);
+            setVisualGeneratorVariant(currentVariant || null);
           }}
         />
       )}

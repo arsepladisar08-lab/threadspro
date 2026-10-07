@@ -438,12 +438,102 @@ export const threadsClient = {
   },
 
   /**
+   * Mengunggah gambar base64 canvas ke server penyimpanan publik sementara
+   * untuk mendapatkan URL publik HTTPS yang valid untuk Meta Threads API
+   */
+  async uploadCanvasImages(images: string[]): Promise<string[]> {
+    if (!images || images.length === 0) return [];
+    
+    // Panggil endpoint /api/upload
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ images }),
+    });
+
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson?.error || `Gagal mengunggah gambar ke server publik (HTTP ${res.status})`);
+    }
+
+    const data = await res.json();
+    if (!data.urls || !Array.isArray(data.urls) || data.urls.length === 0) {
+      throw new Error("Server tidak mengembalikan URL publik yang valid untuk gambar.");
+    }
+
+    return data.urls;
+  },
+
+  /**
+   * Polling status container Meta Threads hingga berstatus FINISHED sebelum dipublikasikan
+   * Memiliki batas timeout 30 detik sesuai spesifikasi resmi Threads Graph API
+   */
+  async waitForContainerReady(
+    containerId: string,
+    token: string,
+    maxWaitMs: number = 30000,
+    onProgress?: (info: string) => void
+  ): Promise<boolean> {
+    const startTime = Date.now();
+    const pollInterval = 1500; // interval 1.5 detik
+    let attempt = 1;
+
+    while (Date.now() - startTime < maxWaitMs) {
+      quotaState.dailyCallsUsed += 1;
+      const statusUrl = `${GRAPH_BASE_URL}/${containerId}?fields=status,error_message&access_token=${encodeURIComponent(token)}`;
+
+      let res: Response;
+      try {
+        res = await fetch(statusUrl);
+      } catch (err: any) {
+        console.warn(`[Threads API] Network error polling container ${containerId}:`, err);
+        await new Promise((r) => setTimeout(r, pollInterval));
+        continue;
+      }
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        const errMsg = errJson?.error?.message || `HTTP ${res.status}`;
+        throw new Error(`Gagal memeriksa status media container ${containerId}: ${errMsg}`);
+      }
+
+      const data = await res.json();
+      const status = (data.status || "").toUpperCase();
+
+      if (status === "FINISHED") {
+        return true;
+      } else if (status === "ERROR") {
+        const detail = data.error_message || "Pemrosesan media ditolak oleh server Meta Threads.";
+        throw new Error(`Media container ${containerId} gagal diproses: ${detail}`);
+      } else if (status === "IN_PROGRESS") {
+        if (onProgress) {
+          onProgress(`Memverifikasi media container Meta Threads... (${attempt}x, status: IN_PROGRESS)`);
+        }
+        await new Promise((r) => setTimeout(r, pollInterval));
+        attempt++;
+      } else {
+        // Status lain menunggu
+        await new Promise((r) => setTimeout(r, pollInterval));
+        attempt++;
+      }
+    }
+
+    throw new Error(
+      `Timeout menunggu pemrosesan media Meta Threads (30 detik). Container ID: ${containerId}. Silakan coba beberapa saat lagi.`
+    );
+  },
+
+  /**
    * Menerbitkan postingan asli ke Threads menggunakan API Resmi
+   * Mendukung Teks Tunggal, Single Image, maupun Multi-Image Carousel Album
    */
   async publishThread(params: {
     text: string;
     topicTag?: string;
     reply2Text?: string;
+    imageUrls?: string[];
+    isCarousel?: boolean;
+    onProgress?: (status: string) => void;
   }): Promise<{ success: boolean; postId: string; permalink: string }> {
     const token = await storage.getThreadsToken();
     const account = await this.getAccount();
@@ -458,35 +548,166 @@ export const threadsClient = {
       throw new Error("Batas kuota posting harian tercapai (maks 25 post/hari).");
     }
 
-    // Step 1: Buat Media Container untuk Post Utama
-    const containerBody = new URLSearchParams();
-    containerBody.append("media_type", "TEXT");
-    containerBody.append("text", params.text);
-    if (params.topicTag) {
-      containerBody.append("topic_tag", params.topicTag.replace(/#/g, "").trim());
+    const { text, topicTag, reply2Text, imageUrls, isCarousel, onProgress } = params;
+    const cleanTopic = topicTag ? topicTag.replace(/#/g, "").trim() : "";
+    const hasImages = Array.isArray(imageUrls) && imageUrls.length > 0;
+    const isMultiImageCarousel = hasImages && (imageUrls.length > 1 || isCarousel === true);
+
+    let mainCreationId: string = "";
+    let finalMediaType: "TEXT_POST" | "IMAGE" | "CAROUSEL_ALBUM" = "TEXT_POST";
+
+    if (isMultiImageCarousel && imageUrls) {
+      // ==========================================
+      // KASUS 1: CAROUSEL ALBUM (2-10 SLIDE GAMBAR)
+      // ==========================================
+      finalMediaType = "CAROUSEL_ALBUM";
+      const totalSlides = imageUrls.length;
+      const childContainerIds: string[] = [];
+
+      onProgress?.(`Membuat media container item carousel (0/${totalSlides})...`);
+
+      // 1.a Buat Container untuk Setiap Slide Item
+      for (let i = 0; i < totalSlides; i++) {
+        const slideUrl = imageUrls[i];
+        onProgress?.(`Membuat slide item #${i + 1} dari ${totalSlides}...`);
+
+        const itemBody = new URLSearchParams();
+        itemBody.append("media_type", "IMAGE");
+        itemBody.append("is_carousel_item", "true");
+        itemBody.append("image_url", slideUrl);
+        itemBody.append("access_token", token);
+
+        quotaState.dailyCallsUsed += 1;
+        const itemRes = await fetch(`${GRAPH_BASE_URL}/me/threads`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: itemBody,
+        });
+
+        if (!itemRes.ok) {
+          const errJson = await itemRes.json().catch(() => ({}));
+          throw new Error(
+            errJson?.error?.message || `Gagal membuat container slide #${i + 1} (HTTP ${itemRes.status})`
+          );
+        }
+
+        const itemData = await itemRes.json();
+        childContainerIds.push(itemData.id);
+      }
+
+      // 1.b Tunggu Kesiapan Status Semua Slide Item (Polling FINISHED)
+      for (let i = 0; i < childContainerIds.length; i++) {
+        const cId = childContainerIds[i];
+        onProgress?.(`Memvalidasi status slide #${i + 1} di Meta Threads...`);
+        await this.waitForContainerReady(cId, token, 30000, onProgress);
+      }
+
+      // 1.c Buat Container Induk CAROUSEL
+      onProgress?.(`Merangkai album carousel (${childContainerIds.length} slide)...`);
+      const carouselBody = new URLSearchParams();
+      carouselBody.append("media_type", "CAROUSEL");
+      carouselBody.append("children", childContainerIds.join(","));
+      carouselBody.append("text", text);
+      if (cleanTopic) {
+        carouselBody.append("topic_tag", cleanTopic);
+      }
+      carouselBody.append("access_token", token);
+
+      quotaState.dailyCallsUsed += 1;
+      const carouselRes = await fetch(`${GRAPH_BASE_URL}/me/threads`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: carouselBody,
+      });
+
+      if (!carouselRes.ok) {
+        const errJson = await carouselRes.json().catch(() => ({}));
+        throw new Error(
+          errJson?.error?.message || `Gagal membuat album carousel Threads (HTTP ${carouselRes.status})`
+        );
+      }
+
+      const carouselData = await carouselRes.json();
+      mainCreationId = carouselData.id;
+
+      // 1.d Tunggu Kesiapan Album Carousel (Polling FINISHED)
+      onProgress?.("Memverifikasi kesiapan album carousel Meta Threads...");
+      await this.waitForContainerReady(mainCreationId, token, 30000, onProgress);
+
+    } else if (hasImages && imageUrls && imageUrls.length === 1) {
+      // ==========================================
+      // KASUS 2: SINGLE IMAGE POST
+      // ==========================================
+      finalMediaType = "IMAGE";
+      onProgress?.("Membuat container gambar tunggal di Threads...");
+
+      const imgBody = new URLSearchParams();
+      imgBody.append("media_type", "IMAGE");
+      imgBody.append("image_url", imageUrls[0]);
+      imgBody.append("text", text);
+      if (cleanTopic) {
+        imgBody.append("topic_tag", cleanTopic);
+      }
+      imgBody.append("access_token", token);
+
+      quotaState.dailyCallsUsed += 1;
+      const imgRes = await fetch(`${GRAPH_BASE_URL}/me/threads`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: imgBody,
+      });
+
+      if (!imgRes.ok) {
+        const errJson = await imgRes.json().catch(() => ({}));
+        throw new Error(
+          errJson?.error?.message || `Gagal membuat container gambar Threads (HTTP ${imgRes.status})`
+        );
+      }
+
+      const imgData = await imgRes.json();
+      mainCreationId = imgData.id;
+
+      // Tunggu status container gambar FINISHED
+      onProgress?.("Menunggu pemrosesan gambar di Meta Threads (FINISHED)...");
+      await this.waitForContainerReady(mainCreationId, token, 30000, onProgress);
+
+    } else {
+      // ==========================================
+      // KASUS 3: TEXT-ONLY POST (DEFAULT)
+      // ==========================================
+      finalMediaType = "TEXT_POST";
+      onProgress?.("Membuat container teks Threads...");
+
+      const textBody = new URLSearchParams();
+      textBody.append("media_type", "TEXT");
+      textBody.append("text", text);
+      if (cleanTopic) {
+        textBody.append("topic_tag", cleanTopic);
+      }
+      textBody.append("access_token", token);
+
+      quotaState.dailyCallsUsed += 1;
+      const createRes = await fetch(`${GRAPH_BASE_URL}/me/threads`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: textBody,
+      });
+
+      if (!createRes.ok) {
+        const errJson = await createRes.json().catch(() => ({}));
+        throw new Error(
+          errJson?.error?.message || `Gagal membuat kontainer Threads (HTTP ${createRes.status})`
+        );
+      }
+
+      const createData = await createRes.json();
+      mainCreationId = createData.id;
     }
-    containerBody.append("access_token", token);
-
-    quotaState.dailyCallsUsed += 1;
-    const createRes = await fetch(`${GRAPH_BASE_URL}/me/threads`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: containerBody,
-    });
-
-    if (!createRes.ok) {
-      const errJson = await createRes.json().catch(() => ({}));
-      throw new Error(
-        errJson?.error?.message || `Gagal membuat kontainer Threads (HTTP ${createRes.status})`
-      );
-    }
-
-    const createData = await createRes.json();
-    const creationId = createData.id;
 
     // Step 2: Publikasikan Media Container Utama
+    onProgress?.("Menerbitkan postingan ke akun Threads Anda...");
     const publishBody = new URLSearchParams();
-    publishBody.append("creation_id", creationId);
+    publishBody.append("creation_id", mainCreationId);
     publishBody.append("access_token", token);
 
     quotaState.dailyCallsUsed += 1;
@@ -509,12 +730,13 @@ export const threadsClient = {
     const newPostId = publishData.id;
 
     // Step 3: Jika ada reply kedua, buat & terbitkan secara berantai
-    if (params.reply2Text?.trim()) {
+    if (reply2Text?.trim()) {
       try {
+        onProgress?.("Menerbitkan reply ke-2 secara berantai...");
         const replyContainerBody = new URLSearchParams();
         replyContainerBody.append("media_type", "TEXT");
         replyContainerBody.append("reply_to_id", newPostId);
-        replyContainerBody.append("text", params.reply2Text.trim());
+        replyContainerBody.append("text", reply2Text.trim());
         replyContainerBody.append("access_token", token);
 
         quotaState.dailyCallsUsed += 1;
@@ -544,6 +766,7 @@ export const threadsClient = {
     }
 
     // Step 4: Dapatkan permalink resmi postingan
+    onProgress?.("Menyinkronkan permalink postingan...");
     let permalink = `https://threads.net/@${account.username}/post/${newPostId}`;
     try {
       quotaState.dailyCallsUsed += 1;
@@ -562,11 +785,11 @@ export const threadsClient = {
       text: params.text,
       timestamp: new Date().toISOString(),
       permalink,
-      media_type: "TEXT_POST",
+      media_type: finalMediaType,
       insights: {
         views: 1,
         likes: 0,
-        replies: params.reply2Text ? 1 : 0,
+        replies: reply2Text ? 1 : 0,
         reposts: 0,
         quotes: 0,
         shares: 0,
@@ -575,6 +798,8 @@ export const threadsClient = {
 
     const currentPosts = await storage.getThreadsPosts();
     await storage.saveThreadsPosts([newPost, ...(currentPosts || [])]);
+
+    onProgress?.("Selesai dipublikasikan!");
 
     return {
       success: true,

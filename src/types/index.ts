@@ -107,6 +107,9 @@ export interface VariantOutput {
   algorithm_signal: string;
   signal_confidence: Confidence;
   placeholders_to_fill: string[];
+  visual_slides?: string[];
+  visual_theme?: "dark" | "paper" | "terminal" | "gradient";
+  visual_aspect_ratio?: "1:1" | "4:5";
 }
 
 export interface QualityIssue {
