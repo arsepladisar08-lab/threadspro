@@ -394,6 +394,37 @@ export const threadsClient = {
   },
 
   /**
+   * Hubungkan akun sandbox / demo untuk uji coba langsung tanpa Meta Developer token
+   */
+  async connectDemoAccount(customUsername = "kreator_threads"): Promise<ThreadsAccount> {
+    const cleanUser = customUsername.trim().replace(/^@/, "") || "kreator_threads";
+    const account: ThreadsAccount = {
+      id: "demo_" + Math.random().toString(36).substring(2, 10),
+      username: cleanUser,
+      name: `Kreator ${cleanUser.charAt(0).toUpperCase() + cleanUser.slice(1)}`,
+      threads_profile_picture_url: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cleanUser)}`,
+      threads_biography: "Kreator konten terkurasi, bertumbuh konsisten di Meta Threads dengan AutoThreads.",
+      followers_count: 1420,
+      connectedAt: Date.now(),
+      tokenExpiryDays: 60,
+      status: "active",
+      token: "demo_sandbox_token_" + Date.now(),
+      isReal: false,
+    };
+
+    await storage.saveThreadsAccount(account);
+    await storage.saveThreadsToken(account.token!);
+    await storage.saveApiProfile({
+      token: account.token!,
+      threads_user_id: account.id,
+      username: account.username,
+      updatedAt: Date.now(),
+    });
+
+    return account;
+  },
+
+  /**
    * Putuskan Akun Threads & Hapus Token
    */
   async disconnectAccount(): Promise<void> {

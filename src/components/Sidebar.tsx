@@ -10,6 +10,7 @@ import {
   Database,
   User,
   ShieldCheck,
+  Key,
 } from "lucide-react";
 import { UserProfile } from "../types";
 
@@ -39,6 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const secondaryNav = [
     { path: "/admin/api-lab", label: "API Lab & Kunci", icon: ShieldCheck },
     { path: "/profil", label: "Profil Kreator", icon: User },
+    { path: "/onboarding", label: "Onboarding Threads", icon: Key },
   ];
 
   return (

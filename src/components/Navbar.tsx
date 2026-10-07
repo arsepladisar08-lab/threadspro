@@ -27,9 +27,11 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const location = useLocation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [threadsAccount, setThreadsAccount] = useState<any | null>(null);
 
   useEffect(() => {
     storage.getProfile().then(setProfile);
+    storage.getThreadsAccount().then(setThreadsAccount);
   }, [location.pathname]);
 
   return (
@@ -113,15 +115,38 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="text-[11px] hidden md:inline">API Lab</span>
           </Link>
 
-          {/* Profile Button */}
-          <Link
-            to="/profil"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600/10 border border-indigo-500/20 text-indigo-300 hover:bg-indigo-600/20 transition active:scale-95"
-            title="Pengaturan Profil Niche & Tone"
-          >
-            <User className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Profil</span>
-          </Link>
+          {/* Threads Login / Onboarding Prompt if not connected */}
+          {!threadsAccount ? (
+            <Link
+              to="/onboarding"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 transition active:scale-95"
+              title="Hubungkan Akun Threads untuk Akses Penuh"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+              <span>Login Threads</span>
+            </Link>
+          ) : (
+            /* Profile Button */
+            <Link
+              to="/profil"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600/10 border border-indigo-500/20 text-indigo-300 hover:bg-indigo-600/20 transition active:scale-95"
+              title={`Akun Threads @${threadsAccount.username} | Pengaturan Profil`}
+            >
+              {threadsAccount.threads_profile_picture_url ? (
+                <img
+                  src={threadsAccount.threads_profile_picture_url}
+                  alt={threadsAccount.username}
+                  className="w-4 h-4 rounded-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = "none";
+                  }}
+                />
+              ) : (
+                <User className="w-3.5 h-3.5" />
+              )}
+              <span className="hidden sm:inline">@{threadsAccount.username}</span>
+            </Link>
+          )}
         </div>
       </div>
     </header>

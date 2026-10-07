@@ -21,6 +21,7 @@ const STORAGE_KEYS = {
   CUSTOM_API_KEY: "autothreads_custom_gemini_api_key",
   THREADS_APP_CREDS: "autothreads_threads_app_creds",
   API_PROFILES: "autothreads_api_profiles",
+  ONBOARDING_COMPLETED: "autothreads_onboarding_completed",
 };
 
 export interface ApiProfile {
@@ -268,11 +269,37 @@ export const storage = {
       await del(STORAGE_KEYS.THREADS_TOKEN);
       await del(STORAGE_KEYS.THREADS_POSTS);
       await del(STORAGE_KEYS.API_PROFILES);
+      await del(STORAGE_KEYS.ONBOARDING_COMPLETED);
     } catch {
       safeRemoveLocal(STORAGE_KEYS.THREADS_ACCOUNT);
       safeRemoveLocal(STORAGE_KEYS.THREADS_TOKEN);
       safeRemoveLocal(STORAGE_KEYS.THREADS_POSTS);
       safeRemoveLocal(STORAGE_KEYS.API_PROFILES);
+      safeRemoveLocal(STORAGE_KEYS.ONBOARDING_COMPLETED);
+    }
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("autothreads_onboarding_changed"));
+    }
+  },
+
+  // Onboarding Flag
+  async isOnboardingCompleted(): Promise<boolean> {
+    try {
+      const val = await get(STORAGE_KEYS.ONBOARDING_COMPLETED);
+      if (val !== undefined && val !== null) return Boolean(val);
+    } catch {}
+    const local = safeGetLocal(STORAGE_KEYS.ONBOARDING_COMPLETED);
+    if (local !== null) return local === "true";
+    return false;
+  },
+
+  async setOnboardingCompleted(completed: boolean): Promise<void> {
+    try {
+      await set(STORAGE_KEYS.ONBOARDING_COMPLETED, completed);
+    } catch {}
+    safeSetLocal(STORAGE_KEYS.ONBOARDING_COMPLETED, String(completed));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("autothreads_onboarding_changed"));
     }
   },
 

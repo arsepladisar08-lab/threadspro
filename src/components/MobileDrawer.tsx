@@ -14,6 +14,7 @@ import {
   BookOpen,
   ArrowRight,
   ExternalLink,
+  Key,
 } from "lucide-react";
 import { UserProfile } from "../types";
 
@@ -62,6 +63,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
     { path: "/bank", label: "Bank Pola Referensi", icon: Database, desc: "Katalog pola hook teruji" },
     { path: "/admin/api-lab", label: "Threads API Lab & Kunci", icon: ShieldCheck, desc: "Token akun Threads & Gemini key" },
     { path: "/profil", label: "Profil & Niche Kreator", icon: User, desc: "Atur target audiens & gaya bahasa" },
+    { path: "/onboarding", label: "Onboarding Akun Threads", icon: Key, desc: "Status koneksi akun Threads & syarat akses" },
   ];
 
   return (

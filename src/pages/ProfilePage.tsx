@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { UserProfile, NicheType, ToneType } from "../types";
 import { storage } from "../lib/storage";
-import { User, Save, CheckCircle2, Download, Upload, AlertCircle, Sparkles, Key, Link2, Unlink } from "lucide-react";
+import { User, Save, CheckCircle2, Download, Upload, AlertCircle, Sparkles, Key, Link2, Unlink, ArrowRight } from "lucide-react";
 import { threadsClient, ThreadsAccount } from "../services/threadsClient";
 import { ThreadsConnectModal } from "../components/ThreadsConnectModal";
 
@@ -28,6 +29,10 @@ const TONES: { label: ToneType; name: string; example: string }[] = [
 ];
 
 export const ProfilePage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const isOnboardingMode = searchParams.get("onboarding") === "true";
+
   const [profile, setProfile] = useState<UserProfile>({
     id: "user_default",
     niche: "Keuangan",
@@ -62,9 +67,16 @@ export const ProfilePage: React.FC = () => {
     e.preventDefault();
     const updated = { ...profile, updatedAt: Date.now() };
     await storage.saveProfile(updated);
+    await storage.setOnboardingCompleted(true);
     setProfile(updated);
     setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
+    if (isOnboardingMode) {
+      setTimeout(() => {
+        navigate("/?welcome=true");
+      }, 1200);
+    } else {
+      setTimeout(() => setSavedSuccess(false), 3000);
+    }
   };
 
   const handleExport = async () => {
@@ -136,6 +148,30 @@ export const ProfilePage: React.FC = () => {
         <div className="mb-6 p-3 rounded-xl bg-neutral-900 border border-neutral-800 text-xs text-neutral-300 flex items-center gap-2">
           <AlertCircle className="w-4 h-4 text-indigo-400" />
           <span>{importStatus}</span>
+        </div>
+      )}
+
+      {/* Onboarding Mode Step 2 Banner */}
+      {isOnboardingMode && (
+        <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-indigo-950/60 to-zinc-900 border border-indigo-500/40 text-white space-y-3 shadow-lg shadow-indigo-950/30">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-semibold">
+              <Sparkles className="w-3.5 h-3.5" />
+              Langkah 2 dari 2: Personalisasi Karakter & Niche AI
+            </span>
+            <span className="text-xs text-emerald-400 font-mono font-medium flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Akun Threads Terhubung
+            </span>
+          </div>
+          <div>
+            <h2 className="text-base sm:text-lg font-bold text-white">
+              Lengkapi Niche & Persona Akun Anda
+            </h2>
+            <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed mt-1">
+              AutoThreads membutuhkan informasi niche dan gaya bahasa ini agar AI dapat menyusun draf utas yang autentik dan bernada alami bagi audiens Anda. Klik tombol <strong>Simpan & Buka Akses Semua Tools</strong> di bawah setelah selesai.
+            </p>
+          </div>
         </div>
       )}
 
@@ -345,14 +381,34 @@ export const ProfilePage: React.FC = () => {
         </div>
 
         {/* Save Bar */}
-        <div className="flex items-center justify-end gap-3 pt-2">
-          <button
-            type="submit"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/25 transition active:scale-95"
-          >
-            <Save className="w-4 h-4" />
-            <span>Simpan Pengaturan Profil</span>
-          </button>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+          {isOnboardingMode ? (
+            <p className="text-xs text-zinc-400">
+              Setelah menyimpan profil, seluruh fitur dan tools AutoThreads akan langsung terbuka.
+            </p>
+          ) : (
+            <div />
+          )}
+
+          <div className="flex items-center gap-3">
+            {savedSuccess && isOnboardingMode && (
+              <span className="text-xs text-emerald-400 flex items-center gap-1.5 font-medium">
+                <CheckCircle2 className="w-4 h-4" />
+                Membuka akses tools...
+              </span>
+            )}
+            <button
+              type="submit"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-xs sm:text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/25 transition active:scale-95"
+            >
+              <Save className="w-4 h-4" />
+              <span>
+                {isOnboardingMode
+                  ? "Simpan & Buka Akses Semua Tools →"
+                  : "Simpan Pengaturan Profil"}
+              </span>
+            </button>
+          </div>
         </div>
       </form>
 
