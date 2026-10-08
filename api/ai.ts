@@ -75,7 +75,18 @@ export default async function handler(req: any, res: any) {
     let lastError: any = null;
     let validatedData: any = null;
 
-    for (const modelName of FALLBACK_MODELS) {
+    for (let i = 0; i < FALLBACK_MODELS.length; i++) {
+      const modelName = FALLBACK_MODELS[i];
+
+      // Terapkan exponential backoff dengan jitter saat beralih ke model cadangan
+      if (i > 0) {
+        const baseDelay = Math.min(1000 * Math.pow(2, i - 1), 6000);
+        const jitter = Math.floor(Math.random() * 300);
+        const delayMs = baseDelay + jitter;
+        console.warn(`Server AI backoff: menunggu ${delayMs}ms sebelum mencoba ${modelName}...`);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+
       try {
         const response = await ai.models.generateContent({
           model: modelName,
@@ -100,12 +111,9 @@ export default async function handler(req: any, res: any) {
         const validated = zodSchema.safeParse(parsedJson);
 
         if (!validated.success) {
-          console.warn(`Server Zod Warning on ${modelName}:`, validated.error.issues);
-          // Jika output berupa objek JSON yang valid, selamatkan datanya alih-alih dibuang
-          if (parsedJson && typeof parsedJson === "object") {
-            validatedData = parsedJson;
-            break;
-          }
+          console.warn(`Server Zod Error on ${modelName}:`, validated.error.issues);
+          // Jangan terima JSON mentah yang gagal validasi; coba model berikutnya
+          lastError = new Error(`Validasi Zod gagal: ${validated.error.issues.map((it) => it.message).join(", ")}`);
           continue;
         }
 

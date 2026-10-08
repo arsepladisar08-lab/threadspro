@@ -7,6 +7,8 @@
 import { get, set, del, keys } from "idb-keyval";
 import { UserProfile, GenerationOutput, CalendarDayItem, MetricEntry, CardUserWeight, ReferenceCard, ScheduledThreadItem, ScheduledStatus } from "../../types";
 import { encryptSensitive, decryptSensitive } from "../crypto";
+import { supabaseAdapter, isSupabaseConfigured } from "./supabase";
+import { CONFIG } from "../../config";
 
 const STORAGE_KEYS = {
   PROFILE: "autothreads_profile",
@@ -61,8 +63,21 @@ function safeRemoveLocal(key: string): void {
 // ==================== STORAGE IMPLEMENTATION ====================
 
 export const storage = {
+  // Mode Storage Aktif
+  isSupabaseActive(): boolean {
+    return CONFIG.storageAdapter === "supabase" && isSupabaseConfigured;
+  },
+
   // Profil User
   async getProfile(): Promise<UserProfile | null> {
+    if (this.isSupabaseActive()) {
+      try {
+        const remote = await supabaseAdapter.getProfile();
+        if (remote) return remote;
+      } catch (e) {
+        console.warn("Supabase getProfile gagal, fallback ke lokal:", e);
+      }
+    }
     try {
       return (await get(STORAGE_KEYS.PROFILE)) || null;
     } catch {
@@ -72,6 +87,9 @@ export const storage = {
   },
 
   async saveProfile(profile: UserProfile): Promise<void> {
+    if (this.isSupabaseActive()) {
+      supabaseAdapter.saveProfile(profile).catch((e) => console.warn("Supabase saveProfile gagal:", e));
+    }
     try {
       await set(STORAGE_KEYS.PROFILE, profile);
     } catch {
@@ -81,6 +99,14 @@ export const storage = {
 
   // Generasi Utas (Riwayat)
   async getGenerations(): Promise<GenerationOutput[]> {
+    if (this.isSupabaseActive()) {
+      try {
+        const remote = await supabaseAdapter.getGenerations();
+        if (remote && remote.length > 0) return remote;
+      } catch (e) {
+        console.warn("Supabase getGenerations gagal, fallback ke lokal:", e);
+      }
+    }
     try {
       return (await get(STORAGE_KEYS.GENERATIONS)) || [];
     } catch {
@@ -90,6 +116,9 @@ export const storage = {
   },
 
   async saveGeneration(gen: GenerationOutput): Promise<void> {
+    if (this.isSupabaseActive()) {
+      supabaseAdapter.saveGeneration(gen).catch((e) => console.warn("Supabase saveGeneration gagal:", e));
+    }
     const list = await this.getGenerations();
     const updated = [gen, ...list.slice(0, 49)]; // Simpan 50 generasi terakhir
     try {
@@ -101,6 +130,14 @@ export const storage = {
 
   // Kalender
   async getCalendar(): Promise<CalendarDayItem[]> {
+    if (this.isSupabaseActive()) {
+      try {
+        const remote = await supabaseAdapter.getCalendar();
+        if (remote && remote.length > 0) return remote;
+      } catch (e) {
+        console.warn("Supabase getCalendar gagal, fallback ke lokal:", e);
+      }
+    }
     try {
       return (await get(STORAGE_KEYS.CALENDAR)) || [];
     } catch {
@@ -110,6 +147,9 @@ export const storage = {
   },
 
   async saveCalendar(items: CalendarDayItem[]): Promise<void> {
+    if (this.isSupabaseActive()) {
+      supabaseAdapter.saveCalendar(items).catch((e) => console.warn("Supabase saveCalendar gagal:", e));
+    }
     try {
       await set(STORAGE_KEYS.CALENDAR, items);
     } catch {
@@ -119,6 +159,14 @@ export const storage = {
 
   // Metrik Manual
   async getMetrics(): Promise<MetricEntry[]> {
+    if (this.isSupabaseActive()) {
+      try {
+        const remote = await supabaseAdapter.getMetrics();
+        if (remote && remote.length > 0) return remote;
+      } catch (e) {
+        console.warn("Supabase getMetrics gagal, fallback ke lokal:", e);
+      }
+    }
     let rawList: MetricEntry[] = [];
     try {
       rawList = (await get(STORAGE_KEYS.METRICS)) || [];
@@ -153,6 +201,10 @@ export const storage = {
     // Jangan simpan repost_facade
     const mType = (entry.mediaType || "").toUpperCase();
     if (mType === "REPOST_FACADE" || mType.includes("REPOST_FACADE")) return;
+
+    if (this.isSupabaseActive()) {
+      supabaseAdapter.saveMetric(entry).catch((e) => console.warn("Supabase saveMetric gagal:", e));
+    }
 
     const list = await this.getMetrics();
     const filtered = list.filter((item) => item.id !== entry.id);
@@ -191,6 +243,9 @@ export const storage = {
   },
 
   async deleteMetric(id: string): Promise<void> {
+    if (this.isSupabaseActive()) {
+      supabaseAdapter.deleteMetric(id).catch((e) => console.warn("Supabase deleteMetric gagal:", e));
+    }
     const list = await this.getMetrics();
     const updated = list.filter((item) => item.id !== id);
     await this.setMetrics(updated);
@@ -209,6 +264,14 @@ export const storage = {
 
   // Bobot Kartu E
   async getCardWeights(): Promise<Record<string, CardUserWeight>> {
+    if (this.isSupabaseActive()) {
+      try {
+        const remote = await supabaseAdapter.getCardWeights();
+        if (remote && Object.keys(remote).length > 0) return remote;
+      } catch (e) {
+        console.warn("Supabase getCardWeights gagal, fallback ke lokal:", e);
+      }
+    }
     try {
       return (await get(STORAGE_KEYS.CARD_WEIGHTS)) || {};
     } catch {
@@ -218,6 +281,9 @@ export const storage = {
   },
 
   async saveCardWeight(weight: CardUserWeight): Promise<void> {
+    if (this.isSupabaseActive()) {
+      supabaseAdapter.saveCardWeight(weight).catch((e) => console.warn("Supabase saveCardWeight gagal:", e));
+    }
     const weights = await this.getCardWeights();
     weights[weight.cardId] = weight;
     try {
@@ -229,6 +295,14 @@ export const storage = {
 
   // Kartu Kustom / Pending Queue
   async getCustomCards(): Promise<ReferenceCard[]> {
+    if (this.isSupabaseActive()) {
+      try {
+        const remote = await supabaseAdapter.getCustomCards();
+        if (remote && remote.length > 0) return remote;
+      } catch (e) {
+        console.warn("Supabase getCustomCards gagal, fallback ke lokal:", e);
+      }
+    }
     try {
       return (await get(STORAGE_KEYS.CUSTOM_CARDS)) || [];
     } catch {
@@ -238,6 +312,9 @@ export const storage = {
   },
 
   async saveCustomCard(card: ReferenceCard): Promise<void> {
+    if (this.isSupabaseActive()) {
+      supabaseAdapter.saveCustomCard(card).catch((e) => console.warn("Supabase saveCustomCard gagal:", e));
+    }
     const list = await this.getCustomCards();
     const updated = [card, ...list.filter((c) => c.id !== card.id)];
     try {
@@ -368,6 +445,14 @@ export const storage = {
 
   // ==================== ANTRIAN JADWAL (AUTO-SCHEDULER) ====================
   async getScheduledQueue(): Promise<ScheduledThreadItem[]> {
+    if (this.isSupabaseActive()) {
+      try {
+        const remote = await supabaseAdapter.getScheduledQueue();
+        if (remote && remote.length > 0) return remote;
+      } catch (e) {
+        console.warn("Supabase getScheduledQueue gagal, fallback ke lokal:", e);
+      }
+    }
     let list: ScheduledThreadItem[] = [];
     try {
       list = (await get(STORAGE_KEYS.SCHEDULED_QUEUE)) || [];
@@ -383,6 +468,9 @@ export const storage = {
   },
 
   async saveScheduledThread(item: ScheduledThreadItem): Promise<void> {
+    if (this.isSupabaseActive()) {
+      supabaseAdapter.saveScheduledThread(item).catch((e) => console.warn("Supabase saveScheduledThread gagal:", e));
+    }
     const current = await this.getScheduledQueue();
     const existingIdx = current.findIndex((q) => q.id === item.id);
     let updated: ScheduledThreadItem[];
@@ -426,6 +514,9 @@ export const storage = {
   },
 
   async removeScheduledThread(id: string): Promise<void> {
+    if (this.isSupabaseActive()) {
+      supabaseAdapter.removeScheduledThread(id).catch((e) => console.warn("Supabase removeScheduledThread gagal:", e));
+    }
     const current = await this.getScheduledQueue();
     const updated = current.filter((q) => q.id !== id);
     try {
@@ -444,6 +535,9 @@ export const storage = {
     status: ScheduledStatus,
     updates?: Partial<ScheduledThreadItem>
   ): Promise<void> {
+    if (this.isSupabaseActive()) {
+      supabaseAdapter.updateScheduledStatus(id, status, updates).catch((e) => console.warn("Supabase updateScheduledStatus gagal:", e));
+    }
     const current = await this.getScheduledQueue();
     const updated = current.map((item) => {
       if (item.id === id) {

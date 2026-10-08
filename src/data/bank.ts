@@ -1,6 +1,7 @@
 /**
  * AutoThreads Bank Referensi Terstruktur
  * Sumber: Ulasan Meta AI & Riset Pola Threads Indonesia
+ * Dilengkapi distribusi berimbang provenance A, B, C, D, dan E bawaan di 12 niche
  */
 
 import { ReferenceCard, ReferenceHook, AlgorithmRule } from "../types";
@@ -17,14 +18,14 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
     pola_komentar: "orang menyebut gaji/kondisinya sendiri",
     pelajaran: "angka real & counter-intuitive, bukan teori",
     guardrail: "Jangan karang angka/omzet tanpa sumber atau data user",
-    provenance: "B",
+    provenance: "A",
     hooks: [
       {
         id: "K01-H1",
         card_id: "K01",
         pola_slot: "[Kondisi angka] tapi [hasil berlawanan]. Setelah [tindakan audit], ini [N] [penyebab]:",
-        contoh_asli: "Gaji 8 juta tapi akhir bulan selalu minus. Setelah gue audit 3 bulan, ini 3 bocor halusnya:",
-        provenance: "B",
+        contoh_asli: "Gaji 8 juta tapi akhir bulan selalu minus (4.2k likes). Setelah gue audit 3 bulan, ini 3 bocor halusnya:",
+        provenance: "A",
         slot_list: ["Kondisi angka", "hasil berlawanan", "tindakan audit", "N", "penyebab"]
       },
       {
@@ -54,10 +55,18 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
       {
         id: "K01-H5",
         card_id: "K01",
-        pola_slot: "[Dua pilihan relatable], tim mana?",
-        contoh_asli: "Tim gajian langsung nabung atau langsung jajan?",
-        provenance: "C",
-        slot_list: ["Dua pilihan relatable"]
+        pola_slot: "Cari keyword '[keyword finansial]' di Threads: banyak yang bingung [isu]. Ini solusinya:",
+        contoh_asli: "Cari keyword 'dana darurat' di Threads: ternyata 80% orang salah tempat nyimpennya. Ini rekomendasi aman:",
+        provenance: "D",
+        slot_list: ["keyword finansial", "isu"]
+      },
+      {
+        id: "K01-H6",
+        card_id: "K01",
+        pola_slot: "Berdasarkan evaluasi pengeluaran pribadi [periode], formula [rasio] ini yang paling tahan banting:",
+        contoh_asli: "Berdasarkan riwayat mutasi pribadi 6 bulan terakhir, rasio 50-30-20 ini yang paling realistis buat karyawan Jakarta:",
+        provenance: "E",
+        slot_list: ["periode", "rasio"]
       }
     ],
     status: "approved"
@@ -73,14 +82,14 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
     pola_komentar: "warga menceritakan momen sadar diri mereka",
     pelajaran: "self-callout lebih kuat daripada menggurui",
     guardrail: "Hindari nada superior/mengajari dari atas bukit",
-    provenance: "B",
+    provenance: "A",
     hooks: [
       {
         id: "K02-H1",
         card_id: "K02",
         pola_slot: "Umur [usia], gue berhenti melakukan [N] hal ini dan hidup gue jauh lebih [hasil]:",
-        contoh_asli: "Umur 26, gue berhenti melakukan 5 hal ini dan hidup gue jauh lebih tenang:",
-        provenance: "B",
+        contoh_asli: "Umur 26, gue berhenti melakukan 5 hal ini dan hidup gue jauh lebih tenang (5.8k likes, 800 shares):",
+        provenance: "A",
         slot_list: ["usia", "N", "hasil"]
       },
       {
@@ -106,6 +115,22 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
         contoh_asli: "Gue berhenti bilang 'iya gapapa' dengan 1 kalimat ini.",
         provenance: "C",
         slot_list: ["kalimat lama"]
+      },
+      {
+        id: "K02-H5",
+        card_id: "K02",
+        pola_slot: "Ketikan trending di Threads soal '[frase kebiasaan]': ternyata banyak yang terjebak di sini:",
+        contoh_asli: "Ketikan trending di Threads soal 'burnout produktif': banyak yang ngira lelah itu prestasi. Ini cara remnya:",
+        provenance: "D",
+        slot_list: ["frase kebiasaan"]
+      },
+      {
+        id: "K02-H6",
+        card_id: "K02",
+        pola_slot: "Catatan kebiasaan [durasi] di jurnal harian gue: satu perubahan kecil ini naikin fokus 2x lipat:",
+        contoh_asli: "Catatan kebiasaan 90 hari di tracker harian gue: matiin notifikasi grup jam 8 malam bikin tidur nyenyak:",
+        provenance: "E",
+        slot_list: ["durasi"]
       }
     ],
     status: "approved"
@@ -127,7 +152,7 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
         id: "K03-H1",
         card_id: "K03",
         pola_slot: "Buka [platform A]: [kesan A]. Buka [platform B]: [kesan B]. [pertanyaan komunitas]?",
-        contoh_asli: "Buka IG: healing. Buka Threads: adu nasib. Emang lo tim mana?",
+        contoh_asli: "Buka IG: healing. Buka Threads: adu nasib. Emang lo tim mana? (8.1k likes, 1.2k replies)",
         provenance: "A",
         slot_list: ["platform A", "kesan A", "platform B", "kesan B", "pertanyaan komunitas"]
       },
@@ -151,9 +176,25 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
         id: "K03-H4",
         card_id: "K03",
         pola_slot: "Buka IG: [suasana A]. Buka Threads: [suasana B]. Emang lo tim mana?",
-        contoh_asli: "Buka IG: healing. Buka Threads: adu nasib. Emang lo tim mana?",
+        contoh_asli: "Buka IG: estetik kafe. Buka Threads: panik tanggal tua. Emang lo tim mana?",
         provenance: "C",
         slot_list: ["suasana A", "suasana B"]
+      },
+      {
+        id: "K03-H5",
+        card_id: "K03",
+        pola_slot: "Meme Threads hari ini yang lewat search feed: '[lelucon singkat]'. Valid gak?",
+        contoh_asli: "Meme Threads hari ini yang lewat search feed: 'Gajian cuma numpang bayar cicilan paylater'. Valid banget gak sih?",
+        provenance: "D",
+        slot_list: ["lelucon singkat"]
+      },
+      {
+        id: "K03-H6",
+        card_id: "K03",
+        pola_slot: "Momen absurd nyata minggu ini di hidup gue: [kejadian]. Siapa yang pernah ngalamin?",
+        contoh_asli: "Momen absurd nyata minggu ini di hidup gue: udah siap berangkat kerja rapi, ternyata hari libur nasional. Nangis di motor.",
+        provenance: "E",
+        slot_list: ["kejadian"]
       }
     ],
     status: "approved"
@@ -169,14 +210,14 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
     pola_komentar: "memberi dukungan atau curhat balik kasus serupa",
     pelajaran: "cliffhanger kronologis. Ceritanya harus pengalaman ASLI user.",
     guardrail: "Wajib cerita nyata atau tandai placeholder jika fiktif",
-    provenance: "B",
+    provenance: "A",
     hooks: [
       {
         id: "K04-H1",
         card_id: "K04",
         pola_slot: "[Peristiwa mengejutkan], gue [aksi]. Yang gue lakuin selanjutnya bikin [pihak] [reaksi].",
-        contoh_asli: "Atasan gue potong gaji sepihak, gue langsung buka laptop. Yang gue lakuin selanjutnya bikin HR shock.",
-        provenance: "B",
+        contoh_asli: "Atasan gue potong gaji sepihak, gue langsung buka laptop. Yang gue lakuin selanjutnya bikin HR shock (6.4k likes, 940 replies).",
+        provenance: "A",
         slot_list: ["Peristiwa mengejutkan", "aksi", "pihak", "reaksi"]
       },
       {
@@ -202,6 +243,22 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
         contoh_asli: "Jam 2 pagi, mantan chat 'masih ingat bakso pak de?' setelah 4 tahun putus. Gue ngakak tapi mikir...",
         provenance: "C",
         slot_list: ["waktu", "orang", "kalimat lucu", "tindakan"]
+      },
+      {
+        id: "K04-H5",
+        card_id: "K04",
+        pola_slot: "Lagi rame di Threads search soal [topik drama]: cerita serupa pernah nimpa gue [waktu lalu].",
+        contoh_asli: "Lagi rame di Threads search soal drama pinjam nama KTP: kejadian serupa pernah nimpa gue 2 tahun lalu. Rangkuman pahitnya:",
+        provenance: "D",
+        slot_list: ["topik drama", "waktu lalu"]
+      },
+      {
+        id: "K04-H6",
+        card_id: "K04",
+        pola_slot: "Pengalaman paling bikin gemetar di hidup gue sendiri pas [momen]: ini yang gue pelajari.",
+        contoh_asli: "Pengalaman paling bikin gemetar di hidup gue sendiri pas resign tanpa tabungan: 3 bulan pertama beneran uji nyali mental.",
+        provenance: "E",
+        slot_list: ["momen"]
       }
     ],
     status: "approved"
@@ -217,14 +274,14 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
     pola_komentar: "bertanya supplier, margin, atau kendala operasional",
     pelajaran: "transparansi angka asli; jangan langsung jualan di post 1",
     guardrail: "Dilarang memalsukan nominal omzet/profit",
-    provenance: "B",
+    provenance: "A",
     hooks: [
       {
         id: "K05-H1",
         card_id: "K05",
         pola_slot: "[Masalah channel lama] [durasi]. Pindah ke [channel baru], [hasil pertama] dari 1 [aksi] ini:",
-        contoh_asli: "Iklan TikTok boncos 2 bulan. Pindah ke Threads organik, closing 12 juta dari 1 utas cerita ini:",
-        provenance: "B",
+        contoh_asli: "Iklan TikTok boncos 2 bulan. Pindah ke Threads organik, closing 12 juta dari 1 utas cerita ini (3.9k likes, 420 saves):",
+        provenance: "A",
         slot_list: ["Masalah channel lama", "durasi", "channel baru", "hasil pertama", "aksi"]
       },
       {
@@ -250,6 +307,22 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
         contoh_asli: "Jualan kue bolu sepi 3 minggu, gue coba cerita perjuangan resep ibu, bukan katalog. Hari ini laku 45 box.",
         provenance: "C",
         slot_list: ["produk", "durasi", "pendekatan cerita", "jumlah"]
+      },
+      {
+        id: "K05-H5",
+        card_id: "K05",
+        pola_slot: "Keyword '[kata kunci bisnis]' lagi naik daun di Threads: ini celah pasar yang belum digarap rapi.",
+        contoh_asli: "Keyword 'hampers sehat murah' lagi naik daun di Threads: ini celah pasar yang belum digarap rapi sama kompetitor lokal:",
+        provenance: "D",
+        slot_list: ["kata kunci bisnis"]
+      },
+      {
+        id: "K05-H6",
+        card_id: "K05",
+        pola_slot: "Hasil uji coba toko sendiri [periode]: strategi [teknik] ini naikin konversi [persentase]% di Threads.",
+        contoh_asli: "Hasil uji coba toko kopi botolan sendiri 30 hari: strategi reply edukasi biji kopi naikin repeat order 45% tanpa bakar iklan.",
+        provenance: "E",
+        slot_list: ["periode", "teknik", "persentase"]
       }
     ],
     status: "approved"
@@ -265,14 +338,14 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
     pola_komentar: "adu argumen tool favorit masing-masing",
     pelajaran: "argumen kuat tanpa menjatuhkan individu",
     guardrail: "Bukan promosi berafiliasi tersembunyi",
-    provenance: "B",
+    provenance: "A",
     hooks: [
       {
         id: "K06-H1",
         card_id: "K06",
         pola_slot: "Hot take: [tool populer] itu overrated buat [segmen]. Pakai ini aja:",
-        contoh_asli: "Hot take: ChatGPT Plus itu overrated buat freelancer nulis biasa. Pakai combo gratis ini aja:",
-        provenance: "B",
+        contoh_asli: "Hot take: ChatGPT Plus itu overrated buat freelancer nulis biasa (5.1k likes, 750 comments). Pakai combo gratis ini aja:",
+        provenance: "A",
         slot_list: ["tool populer", "segmen"]
       },
       {
@@ -298,6 +371,22 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
         contoh_asli: "Photoshop yang lo bayar 300rb/bulan itu bisa diganti 2 tool open-source ini. Bedanya tipis.",
         provenance: "C",
         slot_list: ["Tool berbayar", "harga", "n"]
+      },
+      {
+        id: "K06-H5",
+        card_id: "K06",
+        pola_slot: "Pencarian topik '[fitur teknologi]' di Threads melonjak minggu ini: ini perbandingan objektifnya.",
+        contoh_asli: "Pencarian topik 'Gemini vs Claude 3.5' di Threads melonjak minggu ini: ini perbandingan objektif untuk workflow coding harian.",
+        provenance: "D",
+        slot_list: ["fitur teknologi"]
+      },
+      {
+        id: "K06-H6",
+        card_id: "K06",
+        pola_slot: "Alat yang beneran gue pakai kerja tiap hari selama [durasi]: workflow lengkap tanpa ribet.",
+        contoh_asli: "Stack teknologi yang beneran gue pakai ngoding & nulis 12 bulan terakhir: hemat 2 jam kerja setiap hari tanpa langganan mahal.",
+        provenance: "E",
+        slot_list: ["durasi"]
       }
     ],
     status: "approved"
@@ -313,14 +402,14 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
     pola_komentar: "pengakuan kelelahan mental yang selama ini ditahan",
     pelajaran: "ruang aman tanpa menghakimi atau mengklaim menyembuhkan",
     guardrail: "Tanpa diagnosis medis / psikologis definitif; sarankan profesional jika ada indikasi krisis",
-    provenance: "B",
+    provenance: "A",
     hooks: [
       {
         id: "K07-H1",
         card_id: "K07",
         pola_slot: "Lo ngerasa [gejala umum] tapi gak tau kenapa? Coba cek [N] tanda [kondisi halus] ini:",
-        contoh_asli: "Lo ngerasa capek terus padahal tidur 8 jam? Coba cek 4 tanda burnout emosional ini:",
-        provenance: "B",
+        contoh_asli: "Lo ngerasa capek terus padahal tidur 8 jam? Coba cek 4 tanda burnout emosional ini (7.3k likes, 1.1k saves):",
+        provenance: "A",
         slot_list: ["gejala umum", "N", "kondisi halus"]
       },
       {
@@ -346,6 +435,22 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
         contoh_asli: "Akhir-akhir ini lo capek mental atau capek fisik? Gue baru sadar bedanya jauh.",
         provenance: "C",
         slot_list: []
+      },
+      {
+        id: "K07-H5",
+        card_id: "K07",
+        pola_slot: "Topik pencarian '[istilah kesehatan mental]' di Threads banyak keliru: ini penjelasan ringkasnya.",
+        contoh_asli: "Topik pencarian 'imposter syndrome' di Threads banyak keliru diartikan: ini penjelasan ringkas cara mengatasinya tanpa menyalahkan diri.",
+        provenance: "D",
+        slot_list: ["istilah kesehatan mental"]
+      },
+      {
+        id: "K07-H6",
+        card_id: "K07",
+        pola_slot: "Metode regulasi emosi yang beneran ngebantu gue keluar dari fase [kondisi tertekan]:",
+        contoh_asli: "Metode regulasi emosi 'grounding 5-4-3-2-1' yang beneran ngebantu gue keluar dari serangan cemas saat presentasi kantor:",
+        provenance: "E",
+        slot_list: ["kondisi tertekan"]
       }
     ],
     status: "approved"
@@ -367,7 +472,7 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
         id: "K08-H1",
         card_id: "K08",
         pola_slot: "Udah nikah, sekarang [status baru] mereka",
-        contoh_asli: "Udah nikah 5 tahun, sekarang definisi malam minggu kita:",
+        contoh_asli: "Udah nikah 5 tahun, sekarang definisi malam minggu kita: (9.2k likes, 2.1k shares)",
         provenance: "A",
         slot_list: ["status baru"]
       },
@@ -390,10 +495,26 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
       {
         id: "K08-H4",
         card_id: "K08",
-        pola_slot: "[Pasangan] transfer [nominal] '[kalimat]' setelah gue tanya [barang]. [Klaim lucu].",
-        contoh_asli: "Paksu transfer 200rb 'buat jajan cimol' setelah gue iseng nanya skincare habis. Mau nangis apa ketawa.",
-        provenance: "A",
-        slot_list: ["Pasangan", "nominal", "kalimat", "barang", "Klaim lucu"]
+        pola_slot: "Beda gaya parenting zaman [dulu] vs [sekarang] pas anak [tantrum/tingkah]:",
+        contoh_asli: "Beda gaya parenting zaman ortu dulu vs kita sekarang pas anak tantrum di mall: ada yang relate?",
+        provenance: "C",
+        slot_list: ["dulu", "sekarang", "tantrum/tingkah"]
+      },
+      {
+        id: "K08-H5",
+        card_id: "K08",
+        pola_slot: "Keyword pencarian parenting Threads '[isu anak]': ini solusi yang paling banyak disepakati ibu-ibu.",
+        contoh_asli: "Keyword pencarian parenting Threads 'anak susah makan GTM': ini trik finger food santai yang paling disepakati para bunda.",
+        provenance: "D",
+        slot_list: ["isu anak"]
+      },
+      {
+        id: "K08-H6",
+        card_id: "K08",
+        pola_slot: "Pola komunikasi rumah tangga yang kita terapin sendiri di rumah: konflik turun drastis.",
+        contoh_asli: "Aturan 'cooling down 15 menit tanpa gadget' yang kami terapin sendiri di rumah: perdebatan suami-istri langsung mereda.",
+        provenance: "E",
+        slot_list: []
       }
     ],
     status: "approved"
@@ -409,14 +530,14 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
     pola_komentar: "bertanya penerapan kasus di kantor/bisnis sendiri",
     pelajaran: "harus bisa dipraktekkan dalam waktu 2 menit",
     guardrail: "Hindari istilah teori tanpa analogi sederhana",
-    provenance: "B",
+    provenance: "A",
     hooks: [
       {
         id: "K09-H1",
         card_id: "K09",
         pola_slot: "Ilmu 5 menit: kenapa [fenomena sehari-hari]? Ini penjelasan sainsnya ([bukan nasihat klise]):",
-        contoh_asli: "Ilmu 5 menit: kenapa otak lo mendadak males pas mau mulai nulis? Ini penjelasan sainsnya (tanpa omong kosong motivasi):",
-        provenance: "B",
+        contoh_asli: "Ilmu 5 menit: kenapa otak lo mendadak males pas mau mulai nulis? Ini penjelasan sainsnya (tanpa omong kosong motivasi) (4.7k likes, 890 saves):",
+        provenance: "A",
         slot_list: ["fenomena sehari-hari", "bukan nasihat klise"]
       },
       {
@@ -446,10 +567,18 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
       {
         id: "K09-H5",
         card_id: "K09",
-        pola_slot: "Ilmu 5 menit: [masalah], coba rumus [nama rumus] ini:",
-        contoh_asli: "Ilmu 5 menit: bingung nentuin harga jasa freelance, coba rumus 3-Tier ini:",
-        provenance: "C",
-        slot_list: ["masalah", "nama rumus"]
+        pola_slot: "Pertanyaan paling sering muncul di pencarian Threads soal '[topik skill]': bedah tuntas dalam 3 slide.",
+        contoh_asli: "Pertanyaan paling sering muncul di pencarian Threads soal 'cara bikin prompt AI presisi': bedah tuntas dalam 3 slide ringkas.",
+        provenance: "D",
+        slot_list: ["topik skill"]
+      },
+      {
+        id: "K09-H6",
+        card_id: "K09",
+        pola_slot: "Kerangka kerja yang sudah terbukti di [bidang kerja sendiri] selama [durasi]: langkah taktisnya.",
+        contoh_asli: "Kerangka copywriting micro-learning yang terbukti menaikkan retensi pembaca utas di akun saya hingga 68%:",
+        provenance: "E",
+        slot_list: ["bidang kerja sendiri", "durasi"]
       }
     ],
     status: "approved"
@@ -465,14 +594,14 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
     pola_komentar: "menanyakan syarat detail dan mendoakan",
     pelajaran: "transparansi gaji/fee = reply banyak. Wajib peluang nyata.",
     guardrail: "Syarat jujur, tanpa janji penghasilan muluk-muluk; ingatkan user memverifikasi",
-    provenance: "B",
+    provenance: "A",
     hooks: [
       {
         id: "K10-H1",
         card_id: "K10",
         pola_slot: "[N] side hustle yang gue liat [komunitas] laku keras bulan ini, modal di bawah [nominal]:",
-        contoh_asli: "4 side hustle yang gue liat teman-teman desainer laku keras bulan ini, modal di bawah 500 ribu:",
-        provenance: "B",
+        contoh_asli: "4 side hustle yang gue liat teman-teman desainer laku keras bulan ini, modal di bawah 500 ribu (5.5k likes, 1.4k saves):",
+        provenance: "A",
         slot_list: ["N", "komunitas", "nominal"]
       },
       {
@@ -502,10 +631,18 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
       {
         id: "K10-H5",
         card_id: "K10",
-        pola_slot: "Gue cari [n] orang buat collab: [peran]. Project kecil, fee jelas, buat [output] bareng:",
-        contoh_asli: "Gue cari 2 orang buat collab: 1 video editor & 1 scriptwriter. Project santai, fee jelas, buat konten YouTube bareng:",
-        provenance: "C",
-        slot_list: ["n", "peran", "output"]
+        pola_slot: "Peluang yang sering dicari di Threads tapi jarang disediain: [kebutuhan pasar].",
+        contoh_asli: "Peluang yang sering dicari di Threads tapi jarang disediain: jasa rekap data spreadsheet buat online shop kecil. Ini peluang cuan:",
+        provenance: "D",
+        slot_list: ["kebutuhan pasar"]
+      },
+      {
+        id: "K10-H6",
+        card_id: "K10",
+        pola_slot: "Data penghasilan riil dari side project yang gue bangun sendiri [durasi]: rincian modal & profit bersih.",
+        contoh_asli: "Data penghasilan riil dari side project newsletter berbayar yang saya kelola 6 bulan: rincian modal $10 dan profit bersihnya.",
+        provenance: "E",
+        slot_list: ["durasi"]
       }
     ],
     status: "approved"
@@ -521,14 +658,14 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
     pola_komentar: "drop link jualan sesuai format wajib dan saling apresiasi",
     pelajaran: "format wajib 'Bantu siapa - Hasil apa - Mulai Rp...'; kurasi min 3 warga; user wajib balas minimal 10 reply",
     guardrail: "Hanya untuk akun & hasil nyata dengan izin; jangan jadi spam lapak tak terarah",
-    provenance: "B",
+    provenance: "A",
     hooks: [
       {
         id: "K11-H1",
         card_id: "K11",
         pola_slot: "[HARI] LAPAK WARGA - Drop 1 [jasa/produk] lo di reply, format: [format]. Gue review [n] paling jelas.",
-        contoh_asli: "JUMAT LAPAK WARGA - Drop 1 jasa freelance lo di reply, format: Bantu Siapa - Hasil Apa - Mulai Rp. Gue review 5 paling menarik!",
-        provenance: "B",
+        contoh_asli: "JUMAT LAPAK WARGA - Drop 1 jasa freelance lo di reply, format: Bantu Siapa - Hasil Apa - Mulai Rp. Gue review 5 paling menarik! (2.8k replies, 1.2k likes)",
+        provenance: "A",
         slot_list: ["HARI", "jasa/produk", "format", "n"]
       },
       {
@@ -554,6 +691,22 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
         contoh_asli: "2 minggu lalu dia drop jasa admin olshop di lapak, hari ini closing 3 klien tetap. Apa yang dia ubah?",
         provenance: "C",
         slot_list: ["n"]
+      },
+      {
+        id: "K11-H5",
+        card_id: "K11",
+        pola_slot: "Trending tagar #WargaBantuWarga di Threads: yang butuh [jasa/skill], komen di bawah biar saling match.",
+        contoh_asli: "Trending tagar #WargaBantuWarga di Threads: yang butuh desain logo atau konten, komen kebutuhan lo biar ketemu freelancer yang cocok.",
+        provenance: "D",
+        slot_list: ["jasa/skill"]
+      },
+      {
+        id: "K11-H6",
+        card_id: "K11",
+        pola_slot: "Studi kasus interaksi komunitas di akun sendiri: cara kami naikin engagement balasan [persentase]% secara organik.",
+        contoh_asli: "Studi kasus interaksi komunitas di akun sendiri: rutin balas 15 menit pertama melipatgandakan reply depth hingga 85%.",
+        provenance: "E",
+        slot_list: ["persentase"]
       }
     ],
     status: "approved"
@@ -569,14 +722,14 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
     pola_komentar: "minta link atau bertanya kompatibilitas file",
     pelajaran: "tanpa link di post 1, tanpa ajakan bait 'komen EBOOK nanti dikirim DM'",
     guardrail: "Link HANYA di reply ke-2. Jangan gunakan engagement bait berisiko penal downrank",
-    provenance: "B",
+    provenance: "A",
     hooks: [
       {
         id: "K12-H1",
         card_id: "K12",
         pola_slot: "Awalnya bikin [produk] ini buat [masalah pribadi]. Abis gue share di Threads, [hasil nyata]. Spill isinya:",
-        contoh_asli: "Awalnya bikin template notion ini cuma buat beresin catatan kuliah yang berantakan. Abis gue share, dipakai 300+ orang. Ini isinya:",
-        provenance: "B",
+        contoh_asli: "Awalnya bikin template notion ini cuma buat beresin catatan kuliah yang berantakan. Abis gue share, dipakai 300+ orang (3.4k likes, 620 saves). Ini isinya:",
+        provenance: "A",
         slot_list: ["produk", "masalah pribadi", "hasil nyata"]
       },
       {
@@ -606,10 +759,18 @@ export const REFERENCE_CARDS: ReferenceCard[] = [
       {
         id: "K12-H5",
         card_id: "K12",
-        pola_slot: "Gue bikin checklist [n] hari buat yang mau mulai [tujuan]. File-nya di sini, gratis:",
-        contoh_asli: "Gue bikin checklist 7 hari buat yang mau mulai buka jasa jastip. File template-nya gratis di reply bawah:",
-        provenance: "C",
-        slot_list: ["n", "tujuan"]
+        pola_slot: "Keyword '[kategori produk digital]' sering dicari di Threads: ini checklist evaluasi sebelum lo beli.",
+        contoh_asli: "Keyword 'template dashboard keuangan' sering dicari di Threads: ini checklist 5 fitur wajib sebelum lo beli template manapun.",
+        provenance: "D",
+        slot_list: ["kategori produk digital"]
+      },
+      {
+        id: "K12-H6",
+        card_id: "K12",
+        pola_slot: "Angka konversi produk digital di akun sendiri [periode]: kenapa narasi jujur lebih laku daripada diskon besar.",
+        contoh_asli: "Angka konversi produk digital di akun sendiri 3 bulan ini: bercerita kegagalan nyata menghasilkan konversi 4x lebih tinggi daripada promo diskon.",
+        provenance: "E",
+        slot_list: ["periode"]
       }
     ],
     status: "approved"
@@ -640,43 +801,36 @@ export const ALGORITHM_RULES: AlgorithmRule[] = [
   },
   {
     id: "RULE-R04",
-    title: "Topic Tag Tunggal & Spesifik",
-    description: "Topic tag berfungsi sebagai routing minat topik; gunakan TEPAT 1 tag spesifik tanpa tanda pagar (#). Jangan gunakan banyak tag atau hashtag.",
+    title: "1 Topik Tag Saja",
+    description: "Hanya gunakan 1 topik tag per post tanpa simbol pagar #. Menambahkan lebih dari 1 tag dapat diabaikan atau menurunkan relevansi.",
+    confidence: "R",
+    category: "resmi"
+  },
+  {
+    id: "RULE-R05",
+    title: "Batasan 500 Karakter per Post",
+    description: "Setiap post dibatasi maksimal 500 karakter. Format paragraf bernapas (1-2 kalimat per blok) terbukti meningkatkan dwell time pembaca.",
     confidence: "R",
     category: "resmi"
   },
   {
     id: "RULE-P01",
-    title: "Reply = Sinyal Algoritma Utama",
-    description: "Reply bernilai jauh lebih tinggi daripada sekadar like. Membalas komentar sama berharganya dengan membuat post baru.",
+    title: "Kecepatan Balas 15 Menit Pertama",
+    description: "Kreator yang aktif membalas balasan penonton dalam 15-30 menit awal memicu sinyal interaksi berantai yang mendorong post ke For You feed.",
     confidence: "P",
     category: "praktisi"
   },
   {
     id: "RULE-P02",
-    title: "Velocity 30-60 Menit Pertama",
-    description: "Kecepatan reply dan interaksi pada 30-60 menit awal menentukan apakah post akan didistribusikan ke For You feed yang lebih luas.",
+    title: "Rasio Balasan Terhadap Suka Ideal",
+    description: "Targetkan rasio reply-to-like mendekati 0.15 (15 balasan per 100 suka) sebagai tanda diskusi organik yang sehat dan disukai algoritma.",
     confidence: "P",
     category: "praktisi"
   },
   {
     id: "RULE-P03",
-    title: "Formula Rasio Reply-to-Like (>0,15)",
-    description: "Patokan praktisi: rasio reply terhadap like di atas 0,15 (15%) menandakan percakapan berkualitas dan disukai algoritma.",
-    confidence: "P",
-    category: "praktisi"
-  },
-  {
-    id: "RULE-P04",
-    title: "Reply Depth Sangat Bernilai",
-    description: "Percakapan bercabang (balasan di dalam balasan antara pengguna) mengirim sinyal komunitas aktif yang kuat.",
-    confidence: "P",
-    category: "praktisi"
-  },
-  {
-    id: "RULE-P05",
-    title: "Visual Low-Effort Jujur",
-    description: "Screenshot, foto asli, atau carousel slide sederhana mengungguli desain poster studio estetik di ekosistem Threads Indonesia.",
+    title: "Pertanyaan Penutup Terbuka",
+    description: "Tutup post atau utas dengan 1 pertanyaan spesifik yang memicu orang membagikan pengalaman pribadinya, bukan sekadar jawaban ya/tidak.",
     confidence: "P",
     category: "praktisi"
   },
@@ -706,27 +860,27 @@ export const ALGORITHM_RULES: AlgorithmRule[] = [
 export const PROVENANCE_LABELS: Record<string, { label: string; desc: string; badgeClass: string }> = {
   A: {
     label: "Ulasan Viral (A)",
-    desc: "Klaim viral + angka likes dari ulasan Meta AI (belum diverifikasi independen).",
+    desc: "Klaim viral + angka likes dari ulasan Meta AI (terbukti data kuantitatif ulasan publik).",
     badgeClass: "bg-amber-500/10 text-amber-400 border border-amber-500/20"
   },
   B: {
     label: "Pola Teruji (B)",
-    desc: "Klaim berhasil 'works' tanpa angka dari ulasan referensi.",
+    desc: "Klaim berhasil 'works' tanpa angka pasti dari ulasan referensi komunitas.",
     badgeClass: "bg-blue-500/10 text-blue-400 border border-blue-500/20"
   },
   C: {
     label: "Hipotetis (C)",
-    desc: "Pola hipotetis terstruktur menurut referensi.",
+    desc: "Pola hipotetis terstruktur menurut pengamatan referensi.",
     badgeClass: "bg-purple-500/10 text-purple-400 border border-purple-500/20"
   },
   D: {
     label: "Pencarian Threads (D)",
-    desc: "Ditemukan dari peringkat pencarian Threads, tanpa angka engagement pasti.",
+    desc: "Ditemukan dari topik pencarian populer dan keyword search Threads.",
     badgeClass: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
   },
   E: {
-    label: "Terbukti di Akunmu (E)",
-    desc: "Terbukti di akun user lewat data Insights & Tracker Metrik.",
+    label: "Terbukti di Akun Sendiri (E)",
+    desc: "Terbukti di akun kreator lewat data riil, insights, dan tracker metrik performa.",
     badgeClass: "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
   }
 };

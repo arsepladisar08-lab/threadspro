@@ -256,8 +256,10 @@ async function generateProxyJSON<T>(task: AITask, input: any): Promise<T> {
   const zodValidator = TASK_ZOD_SCHEMAS[task];
   const parsed = zodValidator.safeParse(result);
   if (!parsed.success) {
-    console.warn("Zod validation gagal pada mode proxy:", parsed.error);
-    return result as T;
+    console.error("Zod validation gagal pada mode proxy:", parsed.error.issues);
+    throw new Error(
+      `Format data AI dari proxy tidak valid: ${parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ")}`
+    );
   }
   return parsed.data as T;
 }
@@ -279,7 +281,18 @@ async function generateDirectJSON<T>(
 
   let lastError: any = null;
 
-  for (const modelName of FALLBACK_MODELS) {
+  for (let i = 0; i < FALLBACK_MODELS.length; i++) {
+    const modelName = FALLBACK_MODELS[i];
+
+    // Terapkan exponential backoff dengan jitter jika ini bukan model pertama
+    if (i > 0) {
+      const baseDelay = Math.min(1000 * Math.pow(2, i - 1), 6000);
+      const jitter = Math.floor(Math.random() * 300);
+      const delayMs = baseDelay + jitter;
+      console.warn(`Menunggu ${delayMs}ms (exponential backoff) sebelum mencoba model ${modelName}...`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+
     try {
       const response = await ai.models.generateContent({
         model: modelName,
@@ -306,14 +319,12 @@ async function generateDirectJSON<T>(
       const validated = zodSchema.safeParse(parsedJson);
 
       if (!validated.success) {
-        console.warn(`Zod parse warning pada ${modelName}:`, validated.error);
-        // Jika data mengandung struktur utama, gunakan parsedJson langsung
-        if (parsedJson && typeof parsedJson === "object") {
-          return parsedJson as T;
-        }
-      } else {
-        return validated.data as T;
+        console.warn(`Zod parse error pada ${modelName}:`, validated.error.issues);
+        // Jangan loloskan JSON mentah yang cacat; lempar error validasi agar fallback ke model berikutnya
+        throw new Error(`Output tidak lolos validasi skema: ${validated.error.issues.map((i) => i.message).join(", ")}`);
       }
+
+      return validated.data as T;
     } catch (error: any) {
       lastError = error;
       console.warn(`Model ${modelName} kendala: ${error.message?.slice(0, 100)}, mencoba model berikutnya...`);
