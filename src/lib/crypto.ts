@@ -37,7 +37,7 @@ async function getCryptoKey(salt: Uint8Array): Promise<CryptoKey> {
   return await crypto.subtle.deriveKey(
     {
       name: "PBKDF2",
-      salt: salt,
+      salt: salt as unknown as BufferSource,
       iterations: 100000,
       hash: "SHA-256",
     },
@@ -63,9 +63,9 @@ export async function encryptSensitive(plainText: string): Promise<string> {
 
     const enc = new TextEncoder();
     const cipherBuffer = await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv },
+      { name: "AES-GCM", iv: iv as unknown as BufferSource },
       key,
-      enc.encode(plainText)
+      enc.encode(plainText) as unknown as BufferSource
     );
 
     const saltHex = Array.from(salt).map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -102,9 +102,9 @@ export async function decryptSensitive(cipherText: string | null | undefined): P
     const key = await getCryptoKey(salt);
 
     const decryptedBuffer = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv },
+      { name: "AES-GCM", iv: iv as unknown as BufferSource },
       key,
-      data
+      data as unknown as BufferSource
     );
 
     const dec = new TextDecoder();

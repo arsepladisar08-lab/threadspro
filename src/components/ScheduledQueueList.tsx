@@ -73,6 +73,7 @@ export const ScheduledQueueList: React.FC<ScheduledQueueListProps> = ({
       const variant = item.variant;
       const res = await threadsClient.publishThread({
         text: variant.posts[0]?.text || "",
+        posts: variant.posts,
         topicTag: variant.topic_tag,
         reply2Text: variant.reply_2?.text,
         imageUrls: variant.visual_slides,

@@ -118,8 +118,21 @@ export default async function handler(req: any, res: any) {
     }
 
     if (!validatedData) {
-      return res.status(502).json({
-        error: lastError?.message || "Semua model AI sedang sibuk. Silakan coba kembali sesaat lagi.",
+      const errStr = lastError?.message || "";
+      const isQuota =
+        errStr.includes("429") ||
+        errStr.toLowerCase().includes("quota") ||
+        errStr.toLowerCase().includes("resource_exhausted") ||
+        errStr.toLowerCase().includes("rate limit");
+
+      const statusCode = isQuota ? 429 : 502;
+      const userMessage = isQuota
+        ? "Kuota model AI Gemini habis atau mencapai batas limit (HTTP 429 Resource Exhausted). Silakan tunggu beberapa saat atau masukkan Gemini API Key mandiri."
+        : errStr || "Semua model AI sedang sibuk. Silakan coba kembali sesaat lagi.";
+
+      return res.status(statusCode).json({
+        error: userMessage,
+        details: errStr,
       });
     }
 
