@@ -6,6 +6,7 @@
 
 import { get, set, del, keys } from "idb-keyval";
 import { UserProfile, GenerationOutput, CalendarDayItem, MetricEntry, CardUserWeight, ReferenceCard, ScheduledThreadItem, ScheduledStatus } from "../../types";
+import { encryptSensitive, decryptSensitive } from "../crypto";
 
 const STORAGE_KEYS = {
   PROFILE: "autothreads_profile",
@@ -306,17 +307,21 @@ export const storage = {
 
   async getThreadsToken(): Promise<string | null> {
     try {
-      return (await get(STORAGE_KEYS.THREADS_TOKEN)) || null;
+      const raw = (await get(STORAGE_KEYS.THREADS_TOKEN)) || safeGetLocal(STORAGE_KEYS.THREADS_TOKEN);
+      return await decryptSensitive(raw);
     } catch {
-      return safeGetLocal(STORAGE_KEYS.THREADS_TOKEN);
+      const local = safeGetLocal(STORAGE_KEYS.THREADS_TOKEN);
+      return await decryptSensitive(local);
     }
   },
 
   async saveThreadsToken(token: string): Promise<void> {
+    const clean = token.trim();
+    const encrypted = await encryptSensitive(clean);
     try {
-      await set(STORAGE_KEYS.THREADS_TOKEN, token);
+      await set(STORAGE_KEYS.THREADS_TOKEN, encrypted);
     } catch {
-      safeSetLocal(STORAGE_KEYS.THREADS_TOKEN, token);
+      safeSetLocal(STORAGE_KEYS.THREADS_TOKEN, encrypted);
     }
   },
 
@@ -396,7 +401,24 @@ export const storage = {
 
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("autothreads_queue_updated", { detail: updated }));
+      this.syncQueueToServer(updated);
     }
+  },
+
+  async syncQueueToServer(queue: ScheduledThreadItem[]): Promise<void> {
+    if (typeof window === "undefined") return;
+    try {
+      const token = await this.getThreadsToken();
+      fetch("/api/cron/publish?action=sync", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-cron-trigger": "manual",
+          ...(token ? { "x-threads-token": token } : {}),
+        },
+        body: JSON.stringify({ queue, accessToken: token }),
+      }).catch(() => {});
+    } catch {}
   },
 
   async cancelScheduledThread(id: string): Promise<void> {
@@ -413,6 +435,7 @@ export const storage = {
     }
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("autothreads_queue_updated", { detail: updated }));
+      this.syncQueueToServer(updated);
     }
   },
 
@@ -441,6 +464,7 @@ export const storage = {
 
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("autothreads_queue_updated", { detail: updated }));
+      this.syncQueueToServer(updated);
     }
   },
 
@@ -523,18 +547,21 @@ export const storage = {
   // Kunci API Mandiri Pengguna (Gemini API Key)
   async getCustomApiKey(): Promise<string | null> {
     try {
-      return (await get(STORAGE_KEYS.CUSTOM_API_KEY)) || null;
+      const raw = (await get(STORAGE_KEYS.CUSTOM_API_KEY)) || safeGetLocal(STORAGE_KEYS.CUSTOM_API_KEY);
+      return await decryptSensitive(raw);
     } catch {
-      return safeGetLocal(STORAGE_KEYS.CUSTOM_API_KEY);
+      const local = safeGetLocal(STORAGE_KEYS.CUSTOM_API_KEY);
+      return await decryptSensitive(local);
     }
   },
 
   async saveCustomApiKey(key: string): Promise<void> {
     const clean = key.trim();
+    const encrypted = await encryptSensitive(clean);
     try {
-      await set(STORAGE_KEYS.CUSTOM_API_KEY, clean);
+      await set(STORAGE_KEYS.CUSTOM_API_KEY, encrypted);
     } catch {
-      safeSetLocal(STORAGE_KEYS.CUSTOM_API_KEY, clean);
+      safeSetLocal(STORAGE_KEYS.CUSTOM_API_KEY, encrypted);
     }
   },
 
@@ -549,18 +576,37 @@ export const storage = {
   // Kredensial Meta Threads App (App ID & Secret)
   async getThreadsAppCreds(): Promise<{ appId?: string; appSecret?: string } | null> {
     try {
-      return (await get(STORAGE_KEYS.THREADS_APP_CREDS)) || null;
+      const stored = (await get(STORAGE_KEYS.THREADS_APP_CREDS)) || safeGetLocal(STORAGE_KEYS.THREADS_APP_CREDS);
+      const parsed = typeof stored === "string" ? JSON.parse(stored) : stored;
+      if (!parsed) return null;
+      if (parsed.appSecret) {
+        parsed.appSecret = (await decryptSensitive(parsed.appSecret)) || parsed.appSecret;
+      }
+      return parsed;
     } catch {
       const local = safeGetLocal(STORAGE_KEYS.THREADS_APP_CREDS);
-      return local ? JSON.parse(local) : null;
+      if (!local) return null;
+      try {
+        const parsed = JSON.parse(local);
+        if (parsed?.appSecret) {
+          parsed.appSecret = (await decryptSensitive(parsed.appSecret)) || parsed.appSecret;
+        }
+        return parsed;
+      } catch {
+        return null;
+      }
     }
   },
 
   async saveThreadsAppCreds(creds: { appId?: string; appSecret?: string }): Promise<void> {
+    const cloned = { ...creds };
+    if (cloned.appSecret) {
+      cloned.appSecret = await encryptSensitive(cloned.appSecret);
+    }
     try {
-      await set(STORAGE_KEYS.THREADS_APP_CREDS, creds);
+      await set(STORAGE_KEYS.THREADS_APP_CREDS, cloned);
     } catch {
-      safeSetLocal(STORAGE_KEYS.THREADS_APP_CREDS, JSON.stringify(creds));
+      safeSetLocal(STORAGE_KEYS.THREADS_APP_CREDS, JSON.stringify(cloned));
     }
   },
 

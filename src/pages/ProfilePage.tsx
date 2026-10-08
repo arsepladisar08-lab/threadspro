@@ -318,7 +318,7 @@ export const ProfilePage: React.FC = () => {
         });
       } else if (ep === "insights_snapshots") {
         if (posts.length > 0) {
-          const targetPostId = posts[0].id;
+          const targetPostId = posts[0].id.replace(/^th_/, "");
           const res = await fetch(
             `${baseUrl}/${targetPostId}/insights?metric=views,likes,replies,reposts,quotes&access_token=${encodeURIComponent(token)}`
           );

@@ -237,7 +237,7 @@ export const threadsClient = {
     let page = 1;
 
     while (url) {
-      console.log(`[Threads API] Fetching page ${page}... URL:`, url);
+      console.log(`[Threads API] Fetching page ${page}...`);
       quotaState.dailyCallsUsed += 1;
       const response = await fetch(url);
       const resJson: any = await response.json().catch(() => ({}));
@@ -559,13 +559,15 @@ export const threadsClient = {
    * Mendukung Teks Tunggal, Single Image, maupun Multi-Image Carousel Album
    */
   async publishThread(params: {
-    text: string;
+    text?: string;
+    posts?: Array<{ order?: number; text: string; media_suggestion?: string } | string>;
+    subsequentPosts?: string[];
     topicTag?: string;
     reply2Text?: string;
     imageUrls?: string[];
     isCarousel?: boolean;
     onProgress?: (status: string) => void;
-  }): Promise<{ success: boolean; postId: string; permalink: string }> {
+  }): Promise<{ success: boolean; postId: string; permalink: string; publishedCount: number }> {
     const token = await storage.getThreadsToken();
     const account = await this.getAccount();
 
@@ -579,7 +581,30 @@ export const threadsClient = {
       throw new Error("Batas kuota posting harian tercapai (maks 25 post/hari).");
     }
 
-    const { text, topicTag, reply2Text, imageUrls, isCarousel, onProgress } = params;
+    const { text, posts, subsequentPosts, topicTag, reply2Text, imageUrls, isCarousel, onProgress } = params;
+    
+    // Kumpulkan seluruh daftar postingan (Post #1 s/d Post #N)
+    let allPostTexts: string[] = [];
+    if (Array.isArray(posts) && posts.length > 0) {
+      allPostTexts = posts
+        .map((p) => (typeof p === "string" ? p : p.text || ""))
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0);
+    } else if (text?.trim()) {
+      allPostTexts = [text.trim()];
+      if (Array.isArray(subsequentPosts)) {
+        allPostTexts.push(
+          ...subsequentPosts.map((t) => (t || "").trim()).filter((t) => t.length > 0)
+        );
+      }
+    }
+
+    if (allPostTexts.length === 0) {
+      throw new Error("Tidak ada teks konten utas yang disediakan untuk dipublikasikan.");
+    }
+
+    const mainPostText = allPostTexts[0];
+    const subsequentTexts = allPostTexts.slice(1);
     const cleanTopic = topicTag ? topicTag.replace(/#/g, "").trim() : "";
     const hasImages = Array.isArray(imageUrls) && imageUrls.length > 0;
     const isMultiImageCarousel = hasImages && (imageUrls.length > 1 || isCarousel === true);
@@ -638,7 +663,7 @@ export const threadsClient = {
       const carouselBody = new URLSearchParams();
       carouselBody.append("media_type", "CAROUSEL");
       carouselBody.append("children", childContainerIds.join(","));
-      carouselBody.append("text", text);
+      carouselBody.append("text", mainPostText);
       if (cleanTopic) {
         carouselBody.append("topic_tag", cleanTopic);
       }
@@ -675,7 +700,7 @@ export const threadsClient = {
       const imgBody = new URLSearchParams();
       imgBody.append("media_type", "IMAGE");
       imgBody.append("image_url", imageUrls[0]);
-      imgBody.append("text", text);
+      imgBody.append("text", mainPostText);
       if (cleanTopic) {
         imgBody.append("topic_tag", cleanTopic);
       }
@@ -707,11 +732,11 @@ export const threadsClient = {
       // KASUS 3: TEXT-ONLY POST (DEFAULT)
       // ==========================================
       finalMediaType = "TEXT_POST";
-      onProgress?.("Membuat container teks Threads...");
+      onProgress?.("Membuat container teks Post #1 Threads...");
 
       const textBody = new URLSearchParams();
       textBody.append("media_type", "TEXT");
-      textBody.append("text", text);
+      textBody.append("text", mainPostText);
       if (cleanTopic) {
         textBody.append("topic_tag", cleanTopic);
       }
@@ -735,8 +760,8 @@ export const threadsClient = {
       mainCreationId = createData.id;
     }
 
-    // Step 2: Publikasikan Media Container Utama
-    onProgress?.("Menerbitkan postingan ke akun Threads Anda...");
+    // Step 2: Publikasikan Media Container Utama (Post #1)
+    onProgress?.("Menerbitkan Post #1 ke akun Threads Anda...");
     const publishBody = new URLSearchParams();
     publishBody.append("creation_id", mainCreationId);
     publishBody.append("access_token", token);
@@ -753,20 +778,82 @@ export const threadsClient = {
     if (!publishRes.ok) {
       const errJson = await publishRes.json().catch(() => ({}));
       throw new Error(
-        errJson?.error?.message || `Gagal menerbitkan kontainer Threads (HTTP ${publishRes.status})`
+        errJson?.error?.message || `Gagal menerbitkan Post #1 Threads (HTTP ${publishRes.status})`
       );
     }
 
     const publishData = await publishRes.json();
-    const newPostId = publishData.id;
+    const rootPostId = publishData.id;
+    let lastPostIdInChain = rootPostId;
+    let publishedCount = 1;
 
-    // Step 3: Jika ada reply kedua, buat & terbitkan secara berantai
+    // Step 3: Publikasikan Post #2 sampai Post #N secara BERANTAI UTUH
+    const totalThreadCount = allPostTexts.length + (reply2Text?.trim() ? 1 : 0);
+    for (let idx = 0; idx < subsequentTexts.length; idx++) {
+      const currentText = subsequentTexts[idx];
+      const postNumber = idx + 2;
+
+      onProgress?.(`Menerbitkan post #${postNumber} dari ${totalThreadCount} secara berantai...`);
+
+      // Berikan jeda 1.5 detik agar pemrosesan berantai Graph API stabil
+      await new Promise((r) => setTimeout(r, 1500));
+
+      const replyContainerBody = new URLSearchParams();
+      replyContainerBody.append("media_type", "TEXT");
+      replyContainerBody.append("reply_to_id", lastPostIdInChain);
+      replyContainerBody.append("text", currentText);
+      replyContainerBody.append("access_token", token);
+
+      quotaState.dailyCallsUsed += 1;
+      quotaState.publishingUsed += 1;
+
+      const replyCreateRes = await fetch(`${GRAPH_BASE_URL}/me/threads`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: replyContainerBody,
+      });
+
+      if (!replyCreateRes.ok) {
+        const errJson = await replyCreateRes.json().catch(() => ({}));
+        throw new Error(
+          errJson?.error?.message || `Gagal membuat kontainer reply untuk Post #${postNumber} (HTTP ${replyCreateRes.status})`
+        );
+      }
+
+      const replyCreateData = await replyCreateRes.json();
+      await this.waitForContainerReady(replyCreateData.id, token, 30000, onProgress);
+
+      const replyPublishBody = new URLSearchParams();
+      replyPublishBody.append("creation_id", replyCreateData.id);
+      replyPublishBody.append("access_token", token);
+
+      const replyPubRes = await fetch(`${GRAPH_BASE_URL}/me/threads_publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: replyPublishBody,
+      });
+
+      if (!replyPubRes.ok) {
+        const errJson = await replyPubRes.json().catch(() => ({}));
+        throw new Error(
+          errJson?.error?.message || `Gagal menerbitkan Post #${postNumber} (HTTP ${replyPubRes.status})`
+        );
+      }
+
+      const replyPubData = await replyPubRes.json();
+      lastPostIdInChain = replyPubData.id;
+      publishedCount++;
+    }
+
+    // Step 4: Jika ada Reply Penutup (CTA), terbitkan di akhir rantai
     if (reply2Text?.trim()) {
       try {
-        onProgress?.("Menerbitkan reply ke-2 secara berantai...");
+        onProgress?.(`Menerbitkan reply penutup CTA (#${publishedCount + 1})...`);
+        await new Promise((r) => setTimeout(r, 1500));
+
         const replyContainerBody = new URLSearchParams();
         replyContainerBody.append("media_type", "TEXT");
-        replyContainerBody.append("reply_to_id", newPostId);
+        replyContainerBody.append("reply_to_id", lastPostIdInChain);
         replyContainerBody.append("text", reply2Text.trim());
         replyContainerBody.append("access_token", token);
 
@@ -781,6 +868,8 @@ export const threadsClient = {
 
         if (replyRes.ok) {
           const replyData = await replyRes.json();
+          await this.waitForContainerReady(replyData.id, token, 30000, onProgress);
+
           const replyPublishBody = new URLSearchParams();
           replyPublishBody.append("creation_id", replyData.id);
           replyPublishBody.append("access_token", token);
@@ -790,19 +879,20 @@ export const threadsClient = {
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: replyPublishBody,
           });
+          publishedCount++;
         }
       } catch (errReply) {
-        console.warn("Gagal memposting reply ke-2 secara otomatis:", errReply);
+        console.warn("Gagal memposting reply CTA secara otomatis:", errReply);
       }
     }
 
-    // Step 4: Dapatkan permalink resmi postingan
+    // Step 5: Dapatkan permalink resmi postingan
     onProgress?.("Menyinkronkan permalink postingan...");
-    let permalink = `https://threads.net/@${account.username}/post/${newPostId}`;
+    let permalink = `https://threads.net/@${account.username}/post/${rootPostId}`;
     try {
       quotaState.dailyCallsUsed += 1;
       const permalinkRes = await fetch(
-        `${GRAPH_BASE_URL}/${newPostId}?fields=id,permalink&access_token=${encodeURIComponent(token)}`
+        `${GRAPH_BASE_URL}/${rootPostId}?fields=id,permalink&access_token=${encodeURIComponent(token)}`
       );
       if (permalinkRes.ok) {
         const pJson = await permalinkRes.json();
@@ -812,15 +902,15 @@ export const threadsClient = {
 
     // Simpan postingan baru ke riwayat lokal
     const newPost: ThreadsPostData = {
-      id: newPostId,
-      text: params.text,
+      id: rootPostId,
+      text: mainPostText,
       timestamp: new Date().toISOString(),
       permalink,
       media_type: finalMediaType,
       insights: {
         views: 1,
         likes: 0,
-        replies: reply2Text ? 1 : 0,
+        replies: publishedCount - 1,
         reposts: 0,
         quotes: 0,
         shares: 0,
@@ -830,12 +920,13 @@ export const threadsClient = {
     const currentPosts = await storage.getThreadsPosts();
     await storage.saveThreadsPosts([newPost, ...(currentPosts || [])]);
 
-    onProgress?.("Selesai dipublikasikan!");
+    onProgress?.(`Selesai! Seluruh utas (${publishedCount} post) berhasil dipublikasikan.`);
 
     return {
       success: true,
-      postId: newPostId,
+      postId: rootPostId,
       permalink,
+      publishedCount,
     };
   },
 

@@ -120,6 +120,7 @@ export const PublishModal: React.FC<Props> = ({
 
       const res = await threadsClient.publishThread({
         text: mainPostText,
+        posts: variant.posts,
         topicTag,
         reply2Text: reply2Text || undefined,
         imageUrls: finalImageUrls,
