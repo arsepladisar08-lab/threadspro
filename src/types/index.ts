@@ -18,7 +18,19 @@ export type NicheType =
   | "Hub: Ilmu Praktis"
   | "Hub: Peluang"
   | "Hub: Panggung Warga"
-  | "Hub: Soft-selling Produk Digital";
+  | "Hub: Soft-selling Produk Digital"
+  | "Karier & Dunia Kerja"
+  | "Kuliner & Resep"
+  | "Travel Hemat"
+  | "Fashion & Beauty"
+  | "Relationship & Dating"
+  | "Pendidikan & Mahasiswa"
+  | "Kesehatan & Fitness"
+  | "Rumah & Home Living"
+  | "Investasi Pemula"
+  | "Hub: Opini & Diskusi Hangat"
+  | "Hub: Behind The Scenes Kreator"
+  | "Hub: Kolaborasi & Komunitas";
 
 export type GoalType = 
   | "Jangkauan" 
