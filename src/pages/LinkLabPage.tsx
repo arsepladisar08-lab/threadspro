@@ -30,7 +30,7 @@ import { storage } from "../lib/storage";
 import { retrieveTopPatterns } from "../lib/retrieval";
 import { auditVariant, autoFixVariant } from "../lib/guard";
 import { generateJSON } from "../services/ai";
-import { YoutubeAnglesOutput, AffiliateProductOutput } from "../types";
+import { YoutubeAnglesOutput, AffiliateProductOutput, YoutubeAngleItem } from "../types";
 
 /**
  * Validasi tautan YouTube
@@ -184,7 +184,7 @@ export const LinkLabPage: React.FC = () => {
 
   const handleGenerateVideoThreads = async () => {
     if (!videoData || selectedAngleId === null) return;
-    const chosenAngle = videoData.angles.find((a) => a.id === selectedAngleId);
+    const chosenAngle = videoData.angles.find((a: YoutubeAngleItem) => a.id === selectedAngleId);
     if (!chosenAngle) return;
 
     setIsGeneratingVideoThreads(true);
@@ -837,7 +837,7 @@ ${trimmedUrl}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                  {videoData.angles.map((angle) => {
+                  {videoData.angles.map((angle: YoutubeAngleItem) => {
                     const isSelected = selectedAngleId === angle.id;
 
                     return (
@@ -880,7 +880,7 @@ ${trimmedUrl}
                                 Poin Kunci Video:
                               </span>
                               <ul className="text-[10px] text-zinc-600 dark:text-zinc-400 list-disc list-inside space-y-0.5">
-                                {angle.key_takeaways.slice(0, 2).map((takeaway, idx) => (
+                                {angle.key_takeaways.slice(0, 2).map((takeaway: string, idx: number) => (
                                   <li key={idx} className="truncate">
                                     {takeaway}
                                   </li>

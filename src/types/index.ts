@@ -259,3 +259,28 @@ export interface ScheduledThreadItem {
   /** "root": semua balasan ke Post #1; "chain" (default lama): berantai */
   replyMode?: "root" | "chain";
 }
+
+export interface YoutubeAngleItem {
+  id: number;
+  angle_title: string;
+  hook_preview: string;
+  summary: string;
+  key_takeaways: string[];
+  suggested_goal: string;
+}
+
+export interface YoutubeAnglesOutput {
+  video_title: string;
+  creator_name: string;
+  video_summary: string;
+  angles: YoutubeAngleItem[];
+}
+
+export interface AffiliateProductOutput {
+  product_name: string;
+  price: string;
+  features: string[];
+  target_audience: string;
+  niche_category: string;
+}
+
