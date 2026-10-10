@@ -5,7 +5,6 @@ import { retrieveTopPatterns } from "../lib/retrieval";
 import { auditVariant, autoFixVariant } from "../lib/guard";
 import { generateJSON, generateFactsAssistance } from "../services/ai";
 import { PublishModal } from "../components/PublishModal";
-import { VisualCardGenerator, VisualTheme, AspectRatio } from "../components/VisualCardGenerator";
 import { GeminiApiKeyModal } from "../components/GeminiApiKeyModal";
 import { MediaAttachments } from "../components/MediaAttachments";
 import { AttachedMedia, revokeAttachment } from "../services/mediaUpload";
@@ -23,7 +22,6 @@ import {
   Paperclip,
   X,
   Save,
-  Palette,
   Edit3,
   ChevronDown,
   ChevronUp,
@@ -52,7 +50,6 @@ export const GeneratorPage: React.FC = () => {
   const [copiedPostIdx, setCopiedPostIdx] = useState<number | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
   const [publishModalVariant, setPublishModalVariant] = useState<VariantOutput | null>(null);
-  const [visualGeneratorVariant, setVisualGeneratorVariant] = useState<VariantOutput | null>(null);
   const [showTrace, setShowTrace] = useState(false);
 
   // Lampiran media (gambar/video) global: berlaku untuk semua varian
@@ -211,7 +208,7 @@ export const GeneratorPage: React.FC = () => {
     setResult(updatedResult);
     await storage.saveGeneration(updatedResult);
     setEditingPostIdx(null);
-    setEditNoticeToast(`Post #${pIdx + 1} disimpan`);
+    setEditNoticeToast(pIdx === 0 ? "Post Utama (#1) disimpan" : `Reply ke-${pIdx + 1} disimpan`);
     setTimeout(() => setEditNoticeToast(null), 2000);
   };
 
@@ -233,7 +230,8 @@ export const GeneratorPage: React.FC = () => {
     setResult(updatedResult);
     await storage.saveGeneration(updatedResult);
     setIsEditingReply2(false);
-    setEditNoticeToast("Reply ke-2 disimpan");
+    const replyNum = current.posts ? current.posts.length + 1 : 4;
+    setEditNoticeToast(`Reply ke-${replyNum} disimpan`);
     setTimeout(() => setEditNoticeToast(null), 2000);
   };
 
@@ -255,27 +253,6 @@ export const GeneratorPage: React.FC = () => {
     setIsEditingTopicTag(false);
     setEditNoticeToast("Topic tag disimpan");
     setTimeout(() => setEditNoticeToast(null), 2000);
-  };
-
-  const handleApplyVisualSlides = async (
-    slidesBase64: string[],
-    meta: { theme: VisualTheme; aspectRatio: AspectRatio }
-  ) => {
-    if (!result || !result.variants || !result.variants[activeVariantIdx]) return;
-    const updatedVariants = [...result.variants];
-    const current = { ...updatedVariants[activeVariantIdx] };
-    current.visual_slides = slidesBase64;
-    current.visual_theme = meta.theme;
-    current.visual_aspect_ratio = meta.aspectRatio;
-    updatedVariants[activeVariantIdx] = current;
-    const updatedResult: GenerationOutput = {
-      ...result,
-      variants: updatedVariants,
-    };
-    setResult(updatedResult);
-    await storage.saveGeneration(updatedResult);
-    setEditNoticeToast(`${slidesBase64.length} slide visual diterapkan`);
-    setTimeout(() => setEditNoticeToast(null), 2500);
   };
 
   const handleGenerate = async (e: React.FormEvent) => {
@@ -350,18 +327,33 @@ export const GeneratorPage: React.FC = () => {
       const writerOutput = await generateJSON<GenerationOutput>("writer", writerInput);
 
       setCurrentStep("Memvalidasi kepatuhan...");
+      const targetGoal = goal || "Jangkauan";
       const auditedVariants = (writerOutput?.variants || []).map((variant) => {
-        const fixedPosts = (variant.posts || []).map((post) => ({
+        let currentVar = { ...variant };
+
+        // Pastikan varian selaras dengan fokus sasaran yang dipilih pengguna
+        if (targetGoal.toLowerCase() !== "konversi") {
+          currentVar.goal = targetGoal;
+          if (currentVar.template === "lapak" || currentVar.template === "softsell_cerita") {
+            currentVar.template = targetGoal === "Kedekatan" ? "validasi" : "kontra_narasi";
+          }
+        }
+
+        const fixedPosts = (currentVar.posts || []).map((post) => ({
           ...post,
           char_count: (post.text || "").length,
         }));
 
-        let audited = { ...variant, posts: fixedPosts };
-        let auditRes = auditVariant(audited, rawIdea);
+        let audited = { ...currentVar, posts: fixedPosts };
+        let auditRes = auditVariant(audited, rawIdea, targetGoal);
 
-        if (!auditRes.passed) {
-          audited = autoFixVariant(audited);
-          auditRes = auditVariant(audited, rawIdea);
+        if (!auditRes.passed || (targetGoal.toLowerCase() !== "konversi" && audited.reply_2?.contains_link)) {
+          audited = autoFixVariant(audited, targetGoal);
+          auditRes = auditVariant(audited, rawIdea, targetGoal);
+        }
+
+        if (targetGoal.toLowerCase() !== "konversi" && audited.reply_2) {
+          audited.reply_2.contains_link = false;
         }
 
         return audited;
@@ -393,14 +385,22 @@ export const GeneratorPage: React.FC = () => {
   };
 
   const handleCopyAll = (variant: VariantOutput) => {
-    const fullText = variant.posts
-      .map((p) => p.text)
-      .join("\n\n---\n\n");
-    const withReply2 = variant.reply_2?.text
-      ? `${fullText}\n\n[Reply]\n${variant.reply_2.text}`
-      : fullText;
+    const postBlocks = variant.posts.map((p, idx) => {
+      const label = idx === 0 ? "Post Utama (#1)" : `Reply ke-${idx + 1}`;
+      return `[${label}]\n${p.text}`;
+    });
+    const currentGoal = (variant.goal || goal).toLowerCase();
+    const reply4Label = currentGoal === "konversi"
+      ? `Reply ke-${variant.posts.length + 1} / CTA`
+      : currentGoal === "kedekatan"
+      ? `Reply ke-${variant.posts.length + 1} (Refleksi)`
+      : `Reply ke-${variant.posts.length + 1} (Pemantik Diskusi)`;
 
-    navigator.clipboard.writeText(withReply2);
+    const fullContent = variant.reply_2?.text
+      ? `${postBlocks.join("\n\n---\n\n")}\n\n---\n\n[${reply4Label}]\n${variant.reply_2.text}`
+      : postBlocks.join("\n\n---\n\n");
+
+    navigator.clipboard.writeText(fullContent);
     setCopiedAll(true);
     setTimeout(() => setCopiedAll(false), 1500);
   };
@@ -726,14 +726,14 @@ export const GeneratorPage: React.FC = () => {
                         <div key={pIdx} className="relative flex gap-3 text-xs z-10">
                           {/* Thread Node / Avatar */}
                           <div className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 flex items-center justify-center font-bold text-[10px] text-zinc-700 dark:text-zinc-300 shrink-0">
-                            {pIdx === 0 ? "@" : pIdx + 1}
+                            {pIdx === 0 ? "@" : `R${pIdx + 1}`}
                           </div>
 
                           {/* Post Content Box */}
                           <div className="flex-1 min-w-0 p-3.5 rounded-xl bg-zinc-100/30 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-850/80 space-y-2">
                             <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400">
                               <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                                {pIdx === 0 ? "Post Utama (#1)" : `Post #${post.order}`}
+                                {pIdx === 0 ? "Post Utama (#1)" : `Reply ke-${pIdx + 1}`}
                               </span>
 
                               <div className="flex items-center gap-2">
@@ -805,17 +805,25 @@ export const GeneratorPage: React.FC = () => {
                       );
                     })}
 
-                    {/* Connected Reply #2 */}
+                    {/* Connected Reply #4 */}
                     {currentVariant.reply_2 && (
                       <div className="relative flex gap-3 text-xs z-10 pt-1">
                         <div className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 flex items-center justify-center font-bold text-[10px] text-zinc-500 dark:text-zinc-400 shrink-0">
-                          R2
+                          {`R${currentVariant.posts.length + 1}`}
                         </div>
 
                         <div className="flex-1 min-w-0 p-3.5 rounded-xl bg-zinc-100/20 dark:bg-zinc-900/20 border border-zinc-200 dark:border-zinc-850/60 space-y-1.5">
                           <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400">
                             <span className="font-medium text-zinc-500 dark:text-zinc-400">
-                              Reply ke-2 (Tautan / CTA)
+                              {(() => {
+                                const replyNum = currentVariant.posts.length + 1;
+                                const currentVarGoal = (currentVariant.goal || goal).toLowerCase();
+                                return currentVarGoal === "konversi"
+                                  ? `Reply ke-${replyNum} (Tautan / CTA Konversi)`
+                                  : currentVarGoal === "kedekatan"
+                                  ? `Reply ke-${replyNum} (Refleksi Komunitas)`
+                                  : `Reply ke-${replyNum} (Pemantik Diskusi)`;
+                              })()}
                             </span>
                             {!isEditingReply2 ? (
                               <button
@@ -866,34 +874,6 @@ export const GeneratorPage: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Visual Slides Preview Strip (if any) */}
-                  {currentVariant.visual_slides && currentVariant.visual_slides.length > 0 && (
-                    <div className="pt-2 border-t border-zinc-200 dark:border-zinc-900 flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
-                        <span className="text-zinc-500 dark:text-zinc-400">
-                          {currentVariant.visual_slides.length} Slide Carousel
-                        </span>
-                        <div className="flex items-center gap-1">
-                          {currentVariant.visual_slides.slice(0, 4).map((s, idx) => (
-                            <img
-                              key={idx}
-                              src={s}
-                              alt="Slide"
-                              className="w-7 h-7 rounded border border-zinc-300 dark:border-zinc-800 object-cover"
-                            />
-                          ))}
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setVisualGeneratorVariant(currentVariant)}
-                        className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 underline text-[11px]"
-                      >
-                        Ubah Slide
-                      </button>
-                    </div>
-                  )}
-
                   {/* Bottom Action Bar */}
                   <div className="pt-4 border-t border-zinc-200 dark:border-zinc-900 flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
@@ -908,19 +888,6 @@ export const GeneratorPage: React.FC = () => {
                         <kbd className="hidden sm:inline-block ml-1 px-1.5 py-0.2 rounded bg-zinc-200 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-[10px] font-mono text-zinc-500 dark:text-zinc-400">
                           ⌘⇧C
                         </kbd>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setVisualGeneratorVariant(currentVariant)}
-                        className="px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-850 text-zinc-700 dark:text-zinc-300 text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
-                      >
-                        <Palette className="w-3.5 h-3.5" />
-                        <span>
-                          {currentVariant.visual_slides && currentVariant.visual_slides.length > 0
-                            ? `Slide (${currentVariant.visual_slides.length})`
-                            : "Buat Slide"}
-                        </span>
                       </button>
                     </div>
 
@@ -961,16 +928,6 @@ export const GeneratorPage: React.FC = () => {
         </div>
       )}
 
-      {/* Visual Generator Modal */}
-      {visualGeneratorVariant && (
-        <VisualCardGenerator
-          variant={visualGeneratorVariant}
-          isOpen={!!visualGeneratorVariant}
-          onClose={() => setVisualGeneratorVariant(null)}
-          onApplyToVariant={handleApplyVisualSlides}
-        />
-      )}
-
       {/* Publish Modal */}
       {publishModalVariant && (
         <PublishModal
@@ -978,10 +935,6 @@ export const GeneratorPage: React.FC = () => {
           isOpen={!!publishModalVariant}
           onClose={() => setPublishModalVariant(null)}
           attachments={mediaAttachments}
-          onRequestOpenVisualGenerator={() => {
-            setPublishModalVariant(null);
-            setVisualGeneratorVariant(currentVariant || null);
-          }}
         />
       )}
 

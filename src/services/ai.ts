@@ -316,22 +316,44 @@ export async function testGeminiApiKey(candidateKey: string): Promise<{ success:
   const clean = candidateKey.trim();
   if (!clean) return { success: false, message: "Kunci API tidak boleh kosong." };
 
-  try {
-    const resp = await withTimeout(
-      createClient(clean).models.generateContent({
-        model: TEXT_MODEL,
-        contents: "Tes koneksi: balas dengan kata 'OK'.",
-        config: { temperature: 0, maxOutputTokens: 5 },
-      }),
-      20_000,
-      "tes API key"
-    );
-    return resp.text
-      ? { success: true, message: "API Key valid dan berhasil terhubung ke Google Gemini!" }
-      : { success: false, message: "Terhubung, tetapi respons API kosong. Coba lagi." };
-  } catch (err) {
-    return { success: false, message: classifyError(err).message };
+  const testModels = Array.from(new Set([TEXT_MODEL, ...(FALLBACK_MODELS || [])].filter(Boolean)));
+  const client = createClient(clean);
+  let lastError: unknown = null;
+
+  for (const model of testModels) {
+    try {
+      const resp = await withTimeout(
+        client.models.generateContent({
+          model,
+          contents: "Tes koneksi: balas dengan kata 'OK'.",
+          config: { temperature: 0, maxOutputTokens: 64 },
+        }),
+        15_000,
+        `tes API key (${model})`
+      );
+
+      const text = (resp.text || resp.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
+      const hasCandidates = Array.isArray(resp.candidates) && resp.candidates.length > 0;
+
+      if (text || hasCandidates) {
+        return { success: true, message: "API Key valid dan berhasil terhubung ke Google Gemini!" };
+      }
+    } catch (err) {
+      lastError = err;
+      const classified = classifyError(err);
+      // Jika masalah autentikasi/kunci salah, hentikan segera karena kunci memang tidak valid
+      if (classified.kind === "auth" || classified.kind === "bad_request") {
+        return { success: false, message: classified.message };
+      }
+      // Jika kendala kuota/503 sementara pada model ini, coba model berikutnya
+      console.warn(`Pengujian kunci pada model ${model} terkendala:`, classified.message);
+    }
   }
+
+  return {
+    success: false,
+    message: lastError ? classifyError(lastError).message : "Terhubung, tetapi respons API kosong. Coba lagi.",
+  };
 }
 
 // ─── Generate JSON terstruktur ───────────────────────────────────────────────

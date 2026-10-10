@@ -82,6 +82,10 @@ export async function retrieveTopPatterns(
   }[] = [];
 
   for (const card of cards) {
+    const isCommercialCard = card.format.toLowerCase().includes("lapak") || card.id === "K14";
+    if (goal.toLowerCase() !== "konversi" && isCommercialCard) {
+      continue;
+    }
     const isNicheMatch = card.niche.toLowerCase().includes(userNiche.toLowerCase()) || 
                          userNiche.toLowerCase().includes(card.niche.toLowerCase());
     const cardWeight = userWeights[card.id]?.weight ?? 1.0;

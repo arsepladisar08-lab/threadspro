@@ -181,10 +181,10 @@ export const CheckerPage: React.FC = () => {
               />
             </div>
 
-            {/* Reply ke-2 */}
+            {/* Reply ke-4 (Balasan Penutup / CTA) */}
             <div className="space-y-1.5">
               <label className="block text-xs font-medium text-zinc-300">
-                Reply #2 (Tautan / Referensi):
+                Reply #4 (Tautan / Referensi Penutup):
               </label>
               <input
                 type="text"
@@ -194,7 +194,7 @@ export const CheckerPage: React.FC = () => {
                 className="w-full p-2.5 rounded-xl bg-zinc-950 border border-zinc-850 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-hidden focus:border-zinc-600 transition"
               />
               <span className="text-[11px] text-zinc-500 block">
-                Menaruh link di reply #2 menjaga post utama dari penalti algoritma Threads.
+                Menaruh link di balasan penutup (Reply #4) menjaga post utama dari penalti algoritma Threads.
               </span>
             </div>
 

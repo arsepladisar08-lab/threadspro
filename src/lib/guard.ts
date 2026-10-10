@@ -99,7 +99,7 @@ const URL_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+|bit\.ly\/[^\s]+|linktr\.ee\/[^
 /**
  * Validasi mendalam untuk varian utas tunggal
  */
-export function auditVariant(variant: VariantOutput, rawIdea: string = ""): CheckerResult {
+export function auditVariant(variant: VariantOutput, rawIdea: string = "", targetGoal?: string): CheckerResult {
   const issues: QualityIssue[] = [];
   let score = 100;
 
@@ -220,7 +220,8 @@ export function auditVariant(variant: VariantOutput, rawIdea: string = ""): Chec
   }
 
   // 10. Cek Reply Konversi pada Sasaran Non-Konversi (Jangkauan & Kedekatan)
-  const isNonConversionGoal = variant.goal && variant.goal.toLowerCase() !== "konversi";
+  const effectiveGoal = targetGoal || variant.goal || "Jangkauan";
+  const isNonConversionGoal = effectiveGoal.toLowerCase() !== "konversi";
   const CONVERSION_TERMS = [
     /link\s+di\s+(bio|profil)/i,
     /cek\s+(bio|profil)/i,
@@ -232,24 +233,30 @@ export function auditVariant(variant: VariantOutput, rawIdea: string = ""): Chec
     /order\s+(di|sekarang)/i,
     /katalog/i,
     /checkout/i,
-    /daftar\s+(webinar|kelas|kursus|workshop)/i,
+    /daftar\s+(webinar|kelas|kursus|workshop|ecourse)/i,
     /konsultasi\s+(gratis|berbayar|dm)/i,
     /jasa\s+(kami|gue|aku)/i,
     /produk\s+(kami|gue|aku)/i,
     /etalase/i,
     /promo\s+terbatas/i,
+    /diskon/i,
+    /shopee|tokopedia|tiktok\s+shop/i,
+    /keranjang\s+kuning/i,
+    /affiliate/i,
+    /tautan\s+(pembelian|produk)/i,
   ];
 
   if (isNonConversionGoal) {
     const replyText = variant.reply_2?.text || "";
     const hasConversionTerm = CONVERSION_TERMS.some((p) => p.test(replyText));
-    if (hasConversionTerm || variant.reply_2?.contains_link) {
+    const hasUrl = URL_REGEX.test(replyText);
+    if (hasConversionTerm || variant.reply_2?.contains_link || hasUrl) {
       score -= 25;
       issues.push({
         type: "unwanted_conversion_reply",
-        description: `Sasaran utas adalah '${variant.goal}', tetapi reply_2 terdeteksi memuat promosi/konversi atau link keluar.`,
+        description: `Sasaran utas adalah '${effectiveGoal}', tetapi Reply ke-4 terdeteksi memuat promosi/konversi atau link keluar.`,
         severity: "critical",
-        fix: "Ganti reply_2 dengan konteks data tambahan, fakta pelengkap, atau pemantik diskusi tanpa ajakan jualan."
+        fix: "Ganti Reply ke-4 dengan pemantik diskusi atau refleksi komunitas tanpa ajakan jualan/promosi."
       });
     }
   }
@@ -265,8 +272,14 @@ export function auditVariant(variant: VariantOutput, rawIdea: string = ""): Chec
 /**
  * Perbaiki otomatis (Auto-fix) masalah yang bisa ditangani secara deterministik
  */
-export function autoFixVariant(variant: VariantOutput): VariantOutput {
+export function autoFixVariant(variant: VariantOutput, targetGoal?: string): VariantOutput {
   const newVariant = JSON.parse(JSON.stringify(variant)) as VariantOutput;
+  const effectiveGoal = targetGoal || newVariant.goal || "Jangkauan";
+  const isNonConversion = effectiveGoal.toLowerCase() !== "konversi";
+
+  if (isNonConversion) {
+    newVariant.goal = effectiveGoal;
+  }
 
   const CONVERSION_TERMS = [
     /link\s+di\s+(bio|profil)/i,
@@ -279,26 +292,33 @@ export function autoFixVariant(variant: VariantOutput): VariantOutput {
     /order\s+(di|sekarang)/i,
     /katalog/i,
     /checkout/i,
-    /daftar\s+(webinar|kelas|kursus|workshop)/i,
+    /daftar\s+(webinar|kelas|kursus|workshop|ecourse)/i,
     /konsultasi\s+(gratis|berbayar|dm)/i,
     /jasa\s+(kami|gue|aku)/i,
     /produk\s+(kami|gue|aku)/i,
     /etalase/i,
     /promo\s+terbatas/i,
+    /diskon/i,
+    /shopee|tokopedia|tiktok\s+shop/i,
+    /keranjang\s+kuning/i,
+    /affiliate/i,
+    /tautan\s+(pembelian|produk)/i,
   ];
 
   // 1. Hapus hashtag (#) dari seluruh post
   newVariant.posts = newVariant.posts.map(post => {
     let text = post.text.replace(/#([\w\u00C0-\u1FFF]+)/g, "$1").replace(/#/g, "");
     
-    // 2. Jika ada URL di post 1, pindahkan ke reply_2
+    // 2. Jika ada URL di post 1, hanya pindahkan ke reply_2 jika sasaran adalah Konversi
     const urlMatch = text.match(URL_REGEX);
     if (urlMatch && post.order === 1) {
       const foundUrl = urlMatch[0];
       text = text.replace(foundUrl, "").trim();
-      if (!newVariant.reply_2.text.includes(foundUrl)) {
-        newVariant.reply_2.text = `${newVariant.reply_2.text}\n\nLink selengkapnya: ${foundUrl}`.trim();
-        newVariant.reply_2.contains_link = true;
+      if (!isNonConversion) {
+        if (!newVariant.reply_2.text.includes(foundUrl)) {
+          newVariant.reply_2.text = `${newVariant.reply_2.text}\n\nLink selengkapnya: ${foundUrl}`.trim();
+          newVariant.reply_2.contains_link = true;
+        }
       }
     }
 
@@ -330,12 +350,12 @@ export function autoFixVariant(variant: VariantOutput): VariantOutput {
     newVariant.topic_tag = newVariant.topic_tag.replace(/#/g, "").trim();
   }
 
-  // 5. Bersihkan reply_2 dari konversi / promosi jika sasaran bukan Konversi
-  const isNonConversion = newVariant.goal && newVariant.goal.toLowerCase() !== "konversi";
+  // 5. Bersihkan reply_2 dari konversi / promosi jika sasaran bukan Konversi (Jangkauan & Kedekatan)
   if (isNonConversion && newVariant.reply_2) {
     const hasConversionTerm = CONVERSION_TERMS.some((p) => p.test(newVariant.reply_2.text || ""));
-    if (hasConversionTerm || newVariant.reply_2.contains_link) {
-      const isKedekatan = newVariant.goal.toLowerCase() === "kedekatan";
+    const hasUrl = URL_REGEX.test(newVariant.reply_2.text || "");
+    if (hasConversionTerm || newVariant.reply_2.contains_link || hasUrl) {
+      const isKedekatan = effectiveGoal.toLowerCase() === "kedekatan";
       newVariant.reply_2.text = isKedekatan
         ? "Jujur, nulis utas ini bikin gue refleksi lagi. Menurut kalian gimana? Cerita santai di bawah yuk, siapa tahu bisa saling menguatkan."
         : "Dari poin-poin di atas, mana yang menurut kalian paling relate atau justru bikin punya pandangan beda? Drop pendapat kalian di bawah buat bahan diskusi.";
@@ -344,7 +364,7 @@ export function autoFixVariant(variant: VariantOutput): VariantOutput {
 
     // Koreksi template lapak / softsell jika sasaran non-konversi
     if (newVariant.template === "lapak" || newVariant.template === "softsell_cerita") {
-      newVariant.template = newVariant.goal.toLowerCase() === "kedekatan" ? "validasi" : "kontra_narasi";
+      newVariant.template = effectiveGoal.toLowerCase() === "kedekatan" ? "validasi" : "kontra_narasi";
     }
   }
 

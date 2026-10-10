@@ -378,7 +378,7 @@ export const ScheduledQueueList: React.FC<ScheduledQueueListProps> = ({
                   </p>
                   {item.variant?.reply_2?.text && (
                     <p className="text-[11px] text-zinc-500 truncate pt-1 border-t border-zinc-200 dark:border-zinc-900">
-                      Reply #2: {item.variant.reply_2.text}
+                      Reply #{item.variant.posts?.length ? item.variant.posts.length + 1 : 4}: {item.variant.reply_2.text}
                     </p>
                   )}
                 </div>

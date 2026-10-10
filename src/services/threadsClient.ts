@@ -59,6 +59,7 @@ export interface QuotaState {
 }
 
 const GRAPH_BASE_URL = "https://graph.threads.net/v1.0";
+const FALLBACK_READY_WAIT_MS = 10000;
 
 let quotaState: QuotaState = {
   dailyCallsLimit: 24000,
@@ -508,6 +509,7 @@ export const threadsClient = {
     const startTime = Date.now();
     const pollInterval = maxWaitMs > 60000 ? 5000 : 1500; // video: polling lebih jarang
     let attempt = 1;
+    let networkFailures = 0;
 
     while (Date.now() - startTime < maxWaitMs) {
       quotaState.dailyCallsUsed += 1;
@@ -517,10 +519,17 @@ export const threadsClient = {
       try {
         res = await fetch(statusUrl);
       } catch (err: any) {
-        console.warn(`[Threads API] Network error polling container ${containerId}:`, err);
-        await new Promise((r) => setTimeout(r, pollInterval));
-        continue;
-      }
+  networkFailures++;
+  console.warn(`[Threads API] Network error polling container ${containerId}:`, err);
+  if (networkFailures >= 3 && maxWaitMs <= 30000) {
+    onProgress?.("Status container tidak bisa dibaca dari browser, menunggu beberapa detik lalu lanjut menerbitkan...");
+    await new Promise((r) => setTimeout(r, FALLBACK_READY_WAIT_MS));
+    return true;
+  }
+  await new Promise((r) => setTimeout(r, pollInterval));
+  continue;
+}
+networkFailures = 0; // tepat setelah blok try/catch fetch
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));

@@ -317,9 +317,9 @@ export const LinkLabPage: React.FC = () => {
           };
         }
 
-        let auditRes = auditVariant(audited, rawIdea);
+        let auditRes = auditVariant(audited, rawIdea, targetGoal);
         if (!auditRes.passed) {
-          audited = autoFixVariant(audited);
+          audited = autoFixVariant(audited, targetGoal);
         }
 
         return audited;
@@ -499,6 +499,7 @@ ${trimmedUrl}
         }));
 
         let audited = { ...variant, posts: fixedPosts };
+        audited.goal = "Konversi";
 
         // Pastikan nama gaya tersemat jelas pada template
         audited.template = styleLabels[idx] || variant.template;
@@ -509,9 +510,9 @@ ${trimmedUrl}
           contains_link: true,
         };
 
-        let auditRes = auditVariant(audited, rawIdea);
+        let auditRes = auditVariant(audited, rawIdea, "Konversi");
         if (!auditRes.passed) {
-          audited = autoFixVariant(audited);
+          audited = autoFixVariant(audited, "Konversi");
           // Tetap pastikan CTA reply_2 tidak terhapus setelah autofix
           audited.reply_2 = {
             text: ctaReplyText,
@@ -551,10 +552,14 @@ ${trimmedUrl}
   };
 
   const handleCopyAll = (variant: VariantOutput) => {
-    const fullText = variant.posts.map((p) => p.text).join("\n\n---\n\n");
+    const postBlocks = variant.posts.map((p, idx) => {
+      const label = idx === 0 ? "Post Utama (#1)" : `Reply ke-${idx + 1}`;
+      return `[${label}]\n${p.text}`;
+    });
+    const reply4Label = `Reply ke-${variant.posts.length + 1} / CTA`;
     const withReply2 = variant.reply_2?.text
-      ? `${fullText}\n\n[Reply Terakhir / CTA]\n${variant.reply_2.text}`
-      : fullText;
+      ? `${postBlocks.join("\n\n---\n\n")}\n\n---\n\n[${reply4Label}]\n${variant.reply_2.text}`
+      : postBlocks.join("\n\n---\n\n");
 
     navigator.clipboard.writeText(withReply2);
     setCopiedAll(true);
@@ -1020,7 +1025,7 @@ ${trimmedUrl}
                     >
                       <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400">
                         <span className="font-semibold text-zinc-800 dark:text-zinc-300">
-                          {pIdx === 0 ? "Post #1 (Hook Pembuka)" : `Post #${pIdx + 1}`}
+                          {pIdx === 0 ? "Post Utama (#1) - Hook Pembuka" : `Reply ke-${pIdx + 1}`}
                         </span>
                         <div className="flex items-center gap-3">
                           <span>{post.text.length} / 500 karakter</span>
@@ -1050,7 +1055,9 @@ ${trimmedUrl}
                       <div className="flex items-center justify-between text-[11px]">
                         <span className="font-semibold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
                           <Send className="w-3 h-3" />
-                          <span>Reply #2 (Kredit Video & Pemicu Reply Velocity)</span>
+                          <span>
+                            {`Reply ke-${currentVideoVariant.posts.length + 1} (Kredit Video & Pemicu Diskusi)`}
+                          </span>
                         </span>
                         <button
                           type="button"
@@ -1403,7 +1410,7 @@ ${trimmedUrl}
                     >
                       <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400">
                         <span className="font-semibold text-zinc-800 dark:text-zinc-300">
-                          {pIdx === 0 ? "Post #1 (Hook Pembuka Tanpa Hard-sell)" : `Post #${pIdx + 1}`}
+                          {pIdx === 0 ? "Post Utama (#1) - Hook Pembuka" : `Reply ke-${pIdx + 1}`}
                         </span>
                         <div className="flex items-center gap-3">
                           <span>{post.text.length} / 500 karakter</span>
@@ -1434,7 +1441,9 @@ ${trimmedUrl}
                       <div className="flex items-center justify-between text-[11px]">
                         <span className="font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
                           <Send className="w-3 h-3" />
-                          <span>Balasan Terakhir (CTA Link Toko & Keterangan Afiliasi)</span>
+                          <span>
+                            {`Reply ke-${currentAffiliateVariant.posts.length + 1} (CTA Link Toko & Keterangan Afiliasi)`}
+                          </span>
                         </span>
                         <button
                           type="button"

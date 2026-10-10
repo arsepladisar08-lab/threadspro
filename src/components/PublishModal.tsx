@@ -28,7 +28,6 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: (permalink: string) => void;
-  onRequestOpenVisualGenerator?: () => void;
   /** Lampiran media global (gambar/video) yang berlaku untuk semua varian */
   attachments?: AttachedMedia[];
 }
@@ -40,7 +39,6 @@ export const PublishModal: React.FC<Props> = ({
   isOpen,
   onClose,
   onSuccess,
-  onRequestOpenVisualGenerator,
   attachments = NO_ATTACHMENTS,
 }) => {
   const [publishing, setPublishing] = useState(false);
@@ -57,10 +55,6 @@ export const PublishModal: React.FC<Props> = ({
   // Struktur balasan: "root" = Post #2 dst. + Reply ke-2 membalas langsung Post #1
   const [replyMode, setReplyMode] = useState<"root" | "chain">("root");
 
-  // Visual Carousel States
-  const hasVisualSlides = Array.isArray(variant.visual_slides) && variant.visual_slides.length > 0;
-  const [includeVisuals, setIncludeVisuals] = useState<boolean>(hasVisualSlides);
-  const [previewSlideIdx, setPreviewSlideIdx] = useState<number>(0);
   const [progressStatus, setProgressStatus] = useState<string>("Mempersiapkan penerbitan...");
 
   useEffect(() => {
@@ -69,8 +63,6 @@ export const PublishModal: React.FC<Props> = ({
       setError(null);
       setResult(null);
       setPublishMode("now");
-      setIncludeVisuals(Array.isArray(variant.visual_slides) && variant.visual_slides.length > 0);
-      setPreviewSlideIdx(0);
       setProgressStatus("Mempersiapkan penerbitan...");
     }
   }, [isOpen, variant]);
@@ -80,7 +72,6 @@ export const PublishModal: React.FC<Props> = ({
   const mainPostText = variant.posts[0]?.text || "";
   const topicTag = variant.topic_tag.replace(/#/g, "").trim();
   const reply2Text = variant.reply_2?.text || "";
-  const visualSlides = variant.visual_slides || [];
 
   const handleAction = async () => {
     if (publishMode === "schedule") {
@@ -124,22 +115,13 @@ export const PublishModal: React.FC<Props> = ({
     setError(null);
 
     try {
-      const slideCount = includeVisuals ? visualSlides.length : 0;
-      const totalMedia = slideCount + attachments.length;
-      if (totalMedia > MEDIA_LIMITS.maxItems) {
+      if (attachments.length > MEDIA_LIMITS.maxItems) {
         throw new Error(
-          `Total media ${totalMedia} (slide visual ${slideCount} + lampiran ${attachments.length}) melebihi batas ${MEDIA_LIMITS.maxItems}. Kurangi lampiran atau slide.`,
+          `Total media lampiran (${attachments.length}) melebihi batas ${MEDIA_LIMITS.maxItems}. Kurangi lampiran.`,
         );
       }
 
-      // Urutan media: slide visual dulu, lalu lampiran
       const media: Array<{ url: string; type: "IMAGE" | "VIDEO" }> = [];
-
-      if (slideCount > 0) {
-        setProgressStatus(`Mengunggah ${slideCount} slide visual ke server publik...`);
-        const slideUrls = await threadsClient.uploadCanvasImages(visualSlides);
-        media.push(...slideUrls.map((url) => ({ url, type: "IMAGE" as const })));
-      }
 
       if (attachments.length > 0) {
         const uploaded = await uploadAttachments(attachments, setProgressStatus);
@@ -188,11 +170,6 @@ export const PublishModal: React.FC<Props> = ({
             <div>
               <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                 <span>Publikasikan Utas ke Threads</span>
-                {includeVisuals && visualSlides.length > 0 && (
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300">
-                    {visualSlides.length > 1 ? "Carousel" : "Single Image"}
-                  </span>
-                )}
               </h3>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">Pilih publikasi langsung atau antrean prime-time WIB otomatis</p>
             </div>
@@ -284,7 +261,7 @@ export const PublishModal: React.FC<Props> = ({
                 <div className="grid grid-cols-2 gap-2">
                   {(
                     [
-                      ["root", "Balasan ke Post #1", "Post #2, #3, dst. lalu Reply ke-2 membalas langsung Post #1"],
+                      ["root", "Balasan ke Post #1", "Reply ke-2, ke-3, dst. lalu Reply ke-4 membalas langsung Post #1"],
                       ["chain", "Berantai", "Tiap post membalas post sebelumnya"],
                     ] as const
                   ).map(([mode, title, desc]) => (
@@ -448,10 +425,18 @@ export const PublishModal: React.FC<Props> = ({
                 </span>
               </div>
 
-              {/* Reply 2 Preview */}
+              {/* Reply 4 Preview */}
               {reply2Text && (
                 <div className="p-3 rounded-xl bg-zinc-100/30 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-850 space-y-1">
-                  <span className="font-medium text-zinc-500 dark:text-zinc-400 text-[11px]">Reply ke-2 (Otomatis):</span>
+                  <span className="font-medium text-zinc-500 dark:text-zinc-400 text-[11px]">
+                    {`Reply ke-${variant.posts?.length ? variant.posts.length + 1 : 4} (${
+                      (variant.goal || "").toLowerCase() === "konversi"
+                        ? "Tautan / CTA"
+                        : (variant.goal || "").toLowerCase() === "kedekatan"
+                        ? "Refleksi Komunitas"
+                        : "Pemantik Diskusi"
+                    }):`}
+                  </span>
                   <p className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed truncate">{reply2Text}</p>
                 </div>
               )}
