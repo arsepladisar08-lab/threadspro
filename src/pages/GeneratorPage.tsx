@@ -255,6 +255,45 @@ export const GeneratorPage: React.FC = () => {
     setTimeout(() => setEditNoticeToast(null), 2000);
   };
 
+  const handleUpdatePostMedia = (pIdx: number, items: AttachedMedia[]) => {
+    if (!result || !result.variants || !result.variants[activeVariantIdx]) return;
+    const updatedVariants = [...result.variants];
+    const current = { ...updatedVariants[activeVariantIdx] };
+    const updatedPosts = [...current.posts];
+
+    updatedPosts[pIdx] = {
+      ...updatedPosts[pIdx],
+      mediaAttachments: items,
+    };
+    current.posts = updatedPosts;
+    updatedVariants[activeVariantIdx] = current;
+
+    const updatedResult: GenerationOutput = {
+      ...result,
+      variants: updatedVariants,
+    };
+    setResult(updatedResult);
+  };
+
+  const handleUpdateReply2Media = (items: AttachedMedia[]) => {
+    if (!result || !result.variants || !result.variants[activeVariantIdx]) return;
+    const updatedVariants = [...result.variants];
+    const current = { ...updatedVariants[activeVariantIdx] };
+    if (!current.reply_2) return;
+
+    current.reply_2 = {
+      ...current.reply_2,
+      mediaAttachments: items,
+    };
+    updatedVariants[activeVariantIdx] = current;
+
+    const updatedResult: GenerationOutput = {
+      ...result,
+      variants: updatedVariants,
+    };
+    setResult(updatedResult);
+  };
+
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!rawIdea.trim()) return;
@@ -651,9 +690,6 @@ export const GeneratorPage: React.FC = () => {
         <div className="lg:col-span-7 space-y-4">
           {result && result.variants && result.variants.length > 0 ? (
             <div className="space-y-4">
-              {/* Lampiran media: berlaku untuk semua varian */}
-              <MediaAttachments items={mediaAttachments} onChange={setMediaAttachments} />
-
               {/* Calm Horizontal Variant Switcher */}
               <div className="flex items-center gap-1 border-b border-zinc-200 dark:border-zinc-900 pb-2">
                 {result.variants.map((v, idx) => {
@@ -800,6 +836,19 @@ export const GeneratorPage: React.FC = () => {
                                 {post.text}
                               </p>
                             )}
+
+                            {/* Lampiran Media per Post (Post Utama #1, Reply ke-2, ke-3, dst) */}
+                            <MediaAttachments
+                              items={post.mediaAttachments || []}
+                              onChange={(next) => handleUpdatePostMedia(pIdx, next)}
+                              compact={true}
+                              label={pIdx === 0 ? "Lampiran Media Post Utama (#1)" : `Lampiran Media Reply ke-${pIdx + 1}`}
+                              description={
+                                pIdx === 0
+                                  ? "Foto atau video untuk Post Utama (#1)"
+                                  : `Foto atau video untuk Reply ke-${pIdx + 1}`
+                              }
+                            />
                           </div>
                         </div>
                       );
@@ -869,6 +918,15 @@ export const GeneratorPage: React.FC = () => {
                               {currentVariant.reply_2.text}
                             </p>
                           )}
+
+                          {/* Lampiran Media Reply ke-4 (CTA / Refleksi) */}
+                          <MediaAttachments
+                            items={currentVariant.reply_2.mediaAttachments || []}
+                            onChange={handleUpdateReply2Media}
+                            compact={true}
+                            label={`Lampiran Media Reply ke-${currentVariant.posts.length + 1}`}
+                            description={`Foto atau video untuk Reply ke-${currentVariant.posts.length + 1}`}
+                          />
                         </div>
                       </div>
                     )}
@@ -934,7 +992,6 @@ export const GeneratorPage: React.FC = () => {
           variant={publishModalVariant}
           isOpen={!!publishModalVariant}
           onClose={() => setPublishModalVariant(null)}
-          attachments={mediaAttachments}
         />
       )}
 

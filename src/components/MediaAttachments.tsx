@@ -13,13 +13,23 @@ interface Props {
   items: AttachedMedia[];
   onChange: (next: AttachedMedia[]) => void;
   disabled?: boolean;
+  label?: string;
+  description?: string;
+  compact?: boolean;
 }
 
 /**
- * Kartu lampiran media (gambar/video). Berlaku untuk semua varian utas:
- * lampiran akan disertakan di Post #1 saat varian apa pun dipublikasikan.
+ * Komponen lampiran media (gambar/video) per postingan.
+ * Dapat dipasang di Post Utama (#1), Reply ke-2, Reply ke-3, hingga Reply ke-4.
  */
-export const MediaAttachments: React.FC<Props> = ({ items, onChange, disabled }) => {
+export const MediaAttachments: React.FC<Props> = ({
+  items,
+  onChange,
+  disabled,
+  label = "Lampiran Media",
+  description,
+  compact = false,
+}) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [errors, setErrors] = useState<string[]>([]);
 
@@ -43,21 +53,66 @@ export const MediaAttachments: React.FC<Props> = ({ items, onChange, disabled })
   const videoCount = items.length - imageCount;
   const isFull = items.length >= MEDIA_LIMITS.maxItems;
 
+  if (compact && items.length === 0) {
+    return (
+      <div className="pt-2.5 mt-2 border-t border-zinc-200/60 dark:border-zinc-800/60">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+            <Paperclip className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>{label}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={disabled}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-850 hover:border-zinc-300 dark:hover:border-zinc-700 transition cursor-pointer shadow-2xs"
+          >
+            <Plus className="w-3 h-3" aria-hidden="true" />
+            <span>Tambah Media</span>
+          </button>
+          <input
+            ref={inputRef}
+            type="file"
+            accept={ACCEPT_ATTR}
+            multiple
+            onChange={handleFiles}
+            className="hidden"
+          />
+        </div>
+        {errors.length > 0 && (
+          <div role="alert" className="flex gap-1.5 text-[11px] text-rose-700 dark:text-rose-300 mt-1.5">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-px" aria-hidden="true" />
+            <ul className="space-y-0.5">
+              {errors.map((err, i) => (
+                <li key={i}>{err}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="p-3.5 rounded-xl bg-zinc-100/60 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-850 space-y-3">
+    <div className={`p-3 rounded-xl bg-zinc-100/60 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-850 space-y-2.5 ${compact ? "mt-2" : ""}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-800 dark:text-zinc-200">
             <Paperclip className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>Lampiran Media</span>
+            <span>{label}</span>
             <span className="font-normal text-zinc-500 dark:text-zinc-400">
               ({items.length}/{MEDIA_LIMITS.maxItems})
             </span>
           </div>
-          <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-            Berlaku untuk semua varian dan disertakan di Post #1.
-            {items.length > 1 && " Lebih dari satu file diterbitkan sebagai carousel."}
-          </p>
+          {description ? (
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">{description}</p>
+          ) : (
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+              {items.length > 1
+                ? "Diterbitkan sebagai album carousel pada post ini."
+                : "Akan dilampirkan pada post ini."}
+            </p>
+          )}
         </div>
 
         <button
@@ -78,6 +133,7 @@ export const MediaAttachments: React.FC<Props> = ({ items, onChange, disabled })
           className="hidden"
         />
       </div>
+
 
       {items.length > 0 && (
         <>

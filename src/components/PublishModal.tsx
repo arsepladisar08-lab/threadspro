@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { VariantOutput, ScheduledThreadItem, TimeSlotType } from "../types";
 import { threadsClient, ThreadsAccount } from "../services/threadsClient";
 import { storage } from "../lib/storage";
 import { ThreadsConnectModal } from "./ThreadsConnectModal";
-import { AttachedMedia, MEDIA_LIMITS, uploadAttachments } from "../services/mediaUpload";
-import { calculateNextPrimeTime, formatWibDateTime, PRIME_TIME_SLOTS } from "../lib/wibHelper";
+import { AttachedMedia, uploadAttachments } from "../services/mediaUpload";
+import { calculateNextPrimeTime, formatWibDateTime } from "../lib/wibHelper";
 import {
   X,
   Send,
@@ -13,14 +13,14 @@ import {
   ExternalLink,
   Loader2,
   Key,
-  Images,
-  Image as ImageIcon,
-  ChevronLeft,
-  ChevronRight,
-  Palette,
   Layers,
-  Sparkles,
   Clock,
+  ListChecks,
+  Check,
+  Film,
+  Image as ImageIcon,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 
 interface Props {
@@ -28,8 +28,17 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: (permalink: string) => void;
-  /** Lampiran media global (gambar/video) yang berlaku untuk semua varian */
+  /** Lampiran media global opsional (untuk kompatibilitas) */
   attachments?: AttachedMedia[];
+}
+
+export interface PostChoiceItem {
+  id: string;
+  order: number;
+  label: string;
+  text: string;
+  attachments: AttachedMedia[];
+  isRoot: boolean;
 }
 
 const NO_ATTACHMENTS: AttachedMedia[] = [];
@@ -43,7 +52,12 @@ export const PublishModal: React.FC<Props> = ({
 }) => {
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ permalink: string; isScheduled?: boolean; scheduledTime?: string } | null>(null);
+  const [result, setResult] = useState<{
+    permalink: string;
+    isScheduled?: boolean;
+    scheduledTime?: string;
+    publishedCount?: number;
+  } | null>(null);
   const [account, setAccount] = useState<ThreadsAccount | null>(null);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
 
@@ -52,10 +66,60 @@ export const PublishModal: React.FC<Props> = ({
   const [selectedSlot, setSelectedSlot] = useState<TimeSlotType>("malam");
   const [daysOffset, setDaysOffset] = useState<number>(0);
 
-  // Struktur balasan: "root" = Post #2 dst. + Reply ke-2 membalas langsung Post #1
+  // Opsi Posting: "all" (Posting Semua) | "custom" (Pilih Beberapa)
+  const [postingScope, setPostingScope] = useState<"all" | "custom">("all");
+  const [selectedPostIds, setSelectedPostIds] = useState<string[]>([]);
+
+  // Struktur balasan: "root" = Post #2 dst. membalas langsung Post #1; "chain" = berantai
   const [replyMode, setReplyMode] = useState<"root" | "chain">("root");
 
   const [progressStatus, setProgressStatus] = useState<string>("Mempersiapkan penerbitan...");
+
+  // Susun daftar semua postingan yang ada dalam varian ini
+  const postChoiceItems: PostChoiceItem[] = useMemo(() => {
+    const items: PostChoiceItem[] = [];
+
+    (variant.posts || []).forEach((p, idx) => {
+      // Prioritaskan lampiran media dari post itu sendiri, atau fallback ke attachments global untuk Post #1
+      const postAttachments =
+        p.mediaAttachments && p.mediaAttachments.length > 0
+          ? p.mediaAttachments
+          : idx === 0 && attachments && attachments.length > 0
+          ? attachments
+          : [];
+
+      items.push({
+        id: `post_${idx}`,
+        order: idx + 1,
+        label: idx === 0 ? "Post Utama (#1)" : `Reply ke-${idx + 1}`,
+        text: p.text || "",
+        attachments: postAttachments,
+        isRoot: idx === 0,
+      });
+    });
+
+    if (variant.reply_2 && variant.reply_2.text) {
+      const replyNum = (variant.posts?.length || 0) + 1;
+      const currentVarGoal = (variant.goal || "").toLowerCase();
+      const subLabel =
+        currentVarGoal === "konversi"
+          ? "CTA Konversi"
+          : currentVarGoal === "kedekatan"
+          ? "Refleksi Komunitas"
+          : "Pemantik Diskusi";
+
+      items.push({
+        id: "reply_2",
+        order: replyNum,
+        label: `Reply ke-${replyNum} (${subLabel})`,
+        text: variant.reply_2.text,
+        attachments: variant.reply_2.mediaAttachments || [],
+        isRoot: false,
+      });
+    }
+
+    return items;
+  }, [variant, attachments]);
 
   useEffect(() => {
     if (isOpen) {
@@ -63,28 +127,97 @@ export const PublishModal: React.FC<Props> = ({
       setError(null);
       setResult(null);
       setPublishMode("now");
+      setPostingScope("all");
+      setSelectedPostIds(postChoiceItems.map((p) => p.id));
       setProgressStatus("Mempersiapkan penerbitan...");
     }
-  }, [isOpen, variant]);
+  }, [isOpen, variant, postChoiceItems]);
 
   if (!isOpen) return null;
 
-  const mainPostText = variant.posts[0]?.text || "";
   const topicTag = variant.topic_tag.replace(/#/g, "").trim();
-  const reply2Text = variant.reply_2?.text || "";
+
+  // Postingan yang aktif berdasarkan opsi "all" atau "custom"
+  const activeSelectedPosts: PostChoiceItem[] =
+    postingScope === "all"
+      ? postChoiceItems
+      : postChoiceItems.filter((p) => selectedPostIds.includes(p.id));
+
+  const totalSelectedMediaCount = activeSelectedPosts.reduce(
+    (sum, p) => sum + (p.attachments?.length || 0),
+    0
+  );
+
+  const togglePostSelection = (id: string) => {
+    if (selectedPostIds.includes(id)) {
+      setSelectedPostIds(selectedPostIds.filter((pId) => pId !== id));
+    } else {
+      setSelectedPostIds([...selectedPostIds, id]);
+    }
+  };
+
+  const selectAllPosts = () => {
+    setSelectedPostIds(postChoiceItems.map((p) => p.id));
+  };
+
+  const selectOnlyMainPost = () => {
+    const main = postChoiceItems.find((p) => p.isRoot);
+    if (main) {
+      setSelectedPostIds([main.id]);
+    }
+  };
 
   const handleAction = async () => {
+    if (activeSelectedPosts.length === 0) {
+      setError("Pilih minimal 1 postingan untuk dipublikasikan.");
+      return;
+    }
+
     if (publishMode === "schedule") {
-      if (attachments.length > 0) {
-        setError("Lampiran media belum didukung untuk jadwal otomatis. Pilih \"Posting Sekarang\" atau hapus lampiran.");
+      if (totalSelectedMediaCount > 0) {
+        setError(
+          'Lampiran media belum didukung untuk jadwal otomatis. Pilih "Posting Sekarang" atau hapus lampiran dari postingan.'
+        );
         return;
       }
+
       // Jadwalkan ke Antrean
       try {
         const targetIso = calculateNextPrimeTime(selectedSlot, daysOffset);
+
+        // Jika user memilih sebagian post, buat draf varian yang disesuaikan
+        const filteredPosts = activeSelectedPosts.filter((p) => p.id !== "reply_2").map((p, idx) => ({
+          order: idx + 1,
+          text: p.text,
+          char_count: p.text.length,
+        }));
+
+        const isReply2Selected = activeSelectedPosts.some((p) => p.id === "reply_2");
+        const reply2Item = isReply2Selected ? activeSelectedPosts.find((p) => p.id === "reply_2") : undefined;
+
+        const scheduledVariant: VariantOutput = {
+          ...variant,
+          posts: filteredPosts.length > 0 ? filteredPosts : [
+            {
+              order: 1,
+              text: activeSelectedPosts[0].text,
+              char_count: activeSelectedPosts[0].text.length,
+            }
+          ],
+          reply_2: reply2Item
+            ? {
+                text: reply2Item.text,
+                contains_link: variant.reply_2?.contains_link || false,
+              }
+            : {
+                text: "",
+                contains_link: false,
+              },
+        };
+
         const item: ScheduledThreadItem = {
           id: `sched_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-          variant,
+          variant: scheduledVariant,
           scheduledTimeISO: targetIso,
           timeSlot: selectedSlot,
           status: "queued",
@@ -98,6 +231,7 @@ export const PublishModal: React.FC<Props> = ({
           permalink: "",
           isScheduled: true,
           scheduledTime: formatWibDateTime(targetIso),
+          publishedCount: activeSelectedPosts.length,
         });
       } catch (err: any) {
         setError(err.message || "Gagal menjadwalkan ke antrean.");
@@ -115,32 +249,46 @@ export const PublishModal: React.FC<Props> = ({
     setError(null);
 
     try {
-      if (attachments.length > MEDIA_LIMITS.maxItems) {
-        throw new Error(
-          `Total media lampiran (${attachments.length}) melebihi batas ${MEDIA_LIMITS.maxItems}. Kurangi lampiran.`,
-        );
+      // 1. Unggah media untuk tiap postingan terpilih yang memiliki lampiran
+      const preparedPosts: Array<{
+        order: number;
+        text: string;
+        media?: Array<{ url: string; type: "IMAGE" | "VIDEO" }>;
+      }> = [];
+
+      for (let i = 0; i < activeSelectedPosts.length; i++) {
+        const item = activeSelectedPosts[i];
+        let uploadedMedia: Array<{ url: string; type: "IMAGE" | "VIDEO" }> = [];
+
+        if (item.attachments && item.attachments.length > 0) {
+          setProgressStatus(`Mengunggah lampiran untuk ${item.label}...`);
+          uploadedMedia = await uploadAttachments(item.attachments, (step) => {
+            setProgressStatus(`[${item.label}] ${step}`);
+          });
+        }
+
+        preparedPosts.push({
+          order: i + 1,
+          text: item.text,
+          media: uploadedMedia.length > 0 ? uploadedMedia : undefined,
+        });
       }
 
-      const media: Array<{ url: string; type: "IMAGE" | "VIDEO" }> = [];
-
-      if (attachments.length > 0) {
-        const uploaded = await uploadAttachments(attachments, setProgressStatus);
-        media.push(...uploaded);
-      }
-
+      // 2. Terbitkan ke Meta Threads
       const res = await threadsClient.publishThread({
-        text: mainPostText,
-        posts: variant.posts,
+        posts: preparedPosts,
         topicTag,
-        reply2Text: reply2Text || undefined,
-        media: media.length > 0 ? media : undefined,
         replyMode,
         onProgress: (stepMsg) => {
           setProgressStatus(stepMsg);
         },
       });
 
-      setResult({ permalink: res.permalink });
+      setResult({
+        permalink: res.permalink,
+        publishedCount: res.publishedCount,
+      });
+
       if (onSuccess) onSuccess(res.permalink);
     } catch (e: any) {
       setError(e.message || "Gagal memposting ke Threads.");
@@ -158,6 +306,7 @@ export const PublishModal: React.FC<Props> = ({
             onClick={onClose}
             disabled={publishing}
             className="absolute top-4 right-4 p-1.5 text-zinc-500 hover:text-zinc-900 dark:hover:text-white rounded-lg transition cursor-pointer"
+            aria-label="Tutup modal"
           >
             <X className="w-5 h-5" />
           </button>
@@ -169,9 +318,11 @@ export const PublishModal: React.FC<Props> = ({
             </div>
             <div>
               <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                <span>Publikasikan Utas ke Threads</span>
+                <span>Publikasikan ke Threads</span>
               </h3>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Pilih publikasi langsung atau antrean prime-time WIB otomatis</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                Pilih posting seluruh utas atau sebagian, langsung atau jadwalkan otomatis
+              </p>
             </div>
           </div>
 
@@ -182,12 +333,14 @@ export const PublishModal: React.FC<Props> = ({
               </div>
               <div>
                 <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  {result.isScheduled ? "Berhasil Dijadwalkan ke Antrean!" : "Berhasil Diposting ke Threads!"}
-                </h4>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                   {result.isScheduled
-                    ? `Draf Anda akan dipublikasikan secara otomatis pada ${result.scheduledTime}.`
-                    : "Utas telah berhasil dipublikasikan di akun Threads Anda."}
+                    ? "Berhasil Dijadwalkan ke Antrean!"
+                    : "Berhasil Diposting ke Threads!"}
+                </h4>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-md mx-auto">
+                  {result.isScheduled
+                    ? `Draf (${result.publishedCount || activeSelectedPosts.length} post) akan dipublikasikan secara otomatis pada ${result.scheduledTime}.`
+                    : `Sebanyak ${result.publishedCount || activeSelectedPosts.length} postingan telah sukses dipublikasikan di akun Threads Anda.`}
                 </p>
               </div>
               <div className="pt-2 flex flex-col sm:flex-row gap-2 justify-center">
@@ -198,7 +351,7 @@ export const PublishModal: React.FC<Props> = ({
                     rel="noreferrer"
                     className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-white transition"
                   >
-                    <span>Lihat di Threads</span>
+                    <span>Buka di Threads</span>
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 ) : null}
@@ -229,7 +382,9 @@ export const PublishModal: React.FC<Props> = ({
                     )}
                     <div>
                       <span className="text-zinc-500 dark:text-zinc-400">Akun tujuan: </span>
-                      <span className="font-semibold text-zinc-800 dark:text-zinc-200">@{account.username}</span>
+                      <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                        @{account.username}
+                      </span>
                     </div>
                   </div>
                   <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700">
@@ -239,7 +394,9 @@ export const PublishModal: React.FC<Props> = ({
               ) : (
                 <div className="p-3.5 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <div className="font-semibold text-amber-800 dark:text-amber-200">Akun Threads Belum Terhubung</div>
+                    <div className="font-semibold text-amber-800 dark:text-amber-200">
+                      Akun Threads Belum Terhubung
+                    </div>
                     <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
                       Hubungkan akun Anda untuk memposting secara langsung.
                     </div>
@@ -255,52 +412,272 @@ export const PublishModal: React.FC<Props> = ({
                 </div>
               )}
 
-              {/* Struktur balasan */}
-              <div className="space-y-1.5">
-                <label className="block text-zinc-700 dark:text-zinc-300 font-medium">Struktur Utas:</label>
+              {/* OPSI POSTING: Posting Semua vs Pilih Beberapa */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-zinc-700 dark:text-zinc-300 font-medium">
+                    Opsi Posting:
+                  </label>
+                  <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-mono">
+                    {activeSelectedPosts.length} dari {postChoiceItems.length} post dipilih
+                  </span>
+                </div>
+
                 <div className="grid grid-cols-2 gap-2">
-                  {(
-                    [
-                      ["root", "Balasan ke Post #1", "Reply ke-2, ke-3, dst. lalu Reply ke-4 membalas langsung Post #1"],
-                      ["chain", "Berantai", "Tiap post membalas post sebelumnya"],
-                    ] as const
-                  ).map(([mode, title, desc]) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => setReplyMode(mode)}
-                      aria-pressed={replyMode === mode}
-                      className={`p-3 rounded-xl border text-left transition cursor-pointer ${
-                        replyMode === mode
-                          ? "bg-zinc-100 dark:bg-zinc-900 border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100"
-                          : "bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700"
-                      }`}
-                    >
-                      <div className="font-semibold">{title}</div>
-                      <div className="text-[11px] mt-0.5 opacity-80">{desc}</div>
-                    </button>
-                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPostingScope("all");
+                      setSelectedPostIds(postChoiceItems.map((p) => p.id));
+                    }}
+                    className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                      postingScope === "all"
+                        ? "bg-zinc-100 dark:bg-zinc-900 border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100"
+                        : "bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700"
+                    }`}
+                  >
+                    <div className="font-semibold flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <Layers className="w-3.5 h-3.5" />
+                        <span>Posting Semua</span>
+                      </div>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
+                        {postChoiceItems.length} Post
+                      </span>
+                    </div>
+                    <div className="text-[11px] mt-1 opacity-80 leading-relaxed">
+                      Publikasikan seluruh utas lengkap secara berurutan.
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPostingScope("custom");
+                    }}
+                    className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                      postingScope === "custom"
+                        ? "bg-zinc-100 dark:bg-zinc-900 border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100"
+                        : "bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700"
+                    }`}
+                  >
+                    <div className="font-semibold flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <ListChecks className="w-3.5 h-3.5" />
+                        <span>Pilih Beberapa</span>
+                      </div>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
+                        Pilihan
+                      </span>
+                    </div>
+                    <div className="text-[11px] mt-1 opacity-80 leading-relaxed">
+                      Centang postingan tertentu yang ingin dipublikasikan.
+                    </div>
+                  </button>
                 </div>
               </div>
 
-              {/* Ringkasan lampiran */}
-              {attachments.length > 0 && (
-                <div className="p-3 rounded-xl bg-zinc-100/60 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-850 text-zinc-700 dark:text-zinc-300">
-                  <span className="font-medium">Lampiran: </span>
-                  {attachments.filter((a) => a.kind === "image").length} gambar,{" "}
-                  {attachments.filter((a) => a.kind === "video").length} video akan disertakan di Post #1
-                  {attachments.length > 1 ? " sebagai carousel." : "."}
-                  {publishMode === "schedule" && (
-                    <div className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
-                      Lampiran belum bisa dijadwalkan otomatis. Pilih Posting Sekarang.
+              {/* Detail Checklist jika Pilih Beberapa */}
+              {postingScope === "custom" && (
+                <div className="p-3 rounded-xl bg-zinc-100/40 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-850 space-y-2.5">
+                  <div className="flex items-center justify-between pb-1 border-b border-zinc-200/80 dark:border-zinc-800/80">
+                    <span className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300">
+                      Pilih postingan yang akan diterbitkan:
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={selectAllPosts}
+                        className="text-[10px] text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 underline cursor-pointer"
+                      >
+                        Semua
+                      </button>
+                      <span className="text-zinc-400">·</span>
+                      <button
+                        type="button"
+                        onClick={selectOnlyMainPost}
+                        className="text-[10px] text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 underline cursor-pointer"
+                      >
+                        Hanya Post Utama
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    {postChoiceItems.map((item) => {
+                      const isChecked = selectedPostIds.includes(item.id);
+                      const hasAttachments = item.attachments && item.attachments.length > 0;
+                      const imgCount = item.attachments?.filter((a) => a.kind === "image").length || 0;
+                      const vidCount = item.attachments?.filter((a) => a.kind === "video").length || 0;
+
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => togglePostSelection(item.id)}
+                          className={`p-2.5 rounded-lg border text-left transition cursor-pointer flex items-start gap-2.5 ${
+                            isChecked
+                              ? "bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 shadow-2xs"
+                              : "bg-zinc-50/50 dark:bg-zinc-950/40 border-zinc-200 dark:border-zinc-850 opacity-60 hover:opacity-90"
+                          }`}
+                        >
+                          <div className="pt-0.5 shrink-0">
+                            {isChecked ? (
+                              <CheckSquare className="w-4 h-4 text-zinc-900 dark:text-zinc-100" />
+                            ) : (
+                              <Square className="w-4 h-4 text-zinc-400 dark:text-zinc-600" />
+                            )}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <span
+                                className={`font-semibold text-xs ${
+                                  isChecked
+                                    ? "text-zinc-900 dark:text-zinc-100"
+                                    : "text-zinc-500 dark:text-zinc-400"
+                                }`}
+                              >
+                                {item.label}
+                              </span>
+
+                              <div className="flex items-center gap-1.5 shrink-0 text-[10px] text-zinc-500 dark:text-zinc-400">
+                                <span>{item.text.length} char</span>
+                                {hasAttachments && (
+                                  <span className="px-1.5 py-0.2 rounded-md bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 font-medium flex items-center gap-1">
+                                    {vidCount > 0 ? (
+                                      <Film className="w-2.5 h-2.5" />
+                                    ) : (
+                                      <ImageIcon className="w-2.5 h-2.5" />
+                                    )}
+                                    <span>
+                                      {item.attachments.length} media
+                                    </span>
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <p className="text-[11px] text-zinc-600 dark:text-zinc-400 line-clamp-2 mt-1 leading-snug">
+                              {item.text}
+                            </p>
+
+                            {/* Mini Thumbnail Strip if has attachments */}
+                            {hasAttachments && (
+                              <div className="flex items-center gap-1 mt-1.5 pt-1 border-t border-zinc-100 dark:border-zinc-850">
+                                {item.attachments.map((att) => (
+                                  <div
+                                    key={att.id}
+                                    className="w-6 h-6 rounded bg-zinc-200 dark:bg-zinc-800 overflow-hidden shrink-0 border border-zinc-300 dark:border-zinc-700"
+                                  >
+                                    {att.kind === "video" ? (
+                                      <div className="w-full h-full flex items-center justify-center bg-zinc-900 text-white text-[8px]">
+                                        <Film className="w-3 h-3" />
+                                      </div>
+                                    ) : (
+                                      <img
+                                        src={att.previewUrl}
+                                        alt={att.file.name}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    )}
+                                  </div>
+                                ))}
+                                <span className="text-[10px] text-zinc-500 dark:text-zinc-400 ml-1">
+                                  {imgCount > 0 && `${imgCount} foto`}
+                                  {imgCount > 0 && vidCount > 0 && ", "}
+                                  {vidCount > 0 && `${vidCount} video`}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {activeSelectedPosts.length === 0 && (
+                    <div className="p-2 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-[11px] flex items-center gap-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>Harap centang minimal 1 postingan untuk diterbitkan.</span>
                     </div>
                   )}
                 </div>
               )}
 
+              {/* Ringkasan Media yang Disertakan */}
+              {totalSelectedMediaCount > 0 && (
+                <div className="p-3 rounded-xl bg-zinc-100/60 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-850 text-zinc-700 dark:text-zinc-300 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-xs flex items-center gap-1.5 text-zinc-900 dark:text-zinc-100">
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      <span>Lampiran Media ({totalSelectedMediaCount})</span>
+                    </span>
+                    <span className="text-[11px] text-zinc-500">
+                      {activeSelectedPosts.filter((p) => p.attachments?.length > 0).length} post memiliki media
+                    </span>
+                  </div>
+                  <ul className="text-[11px] text-zinc-500 dark:text-zinc-400 space-y-0.5 pt-0.5">
+                    {activeSelectedPosts
+                      .filter((p) => p.attachments?.length > 0)
+                      .map((p) => (
+                        <li key={p.id} className="flex items-center justify-between">
+                          <span>{p.label}:</span>
+                          <span className="font-mono text-zinc-700 dark:text-zinc-300">
+                            {p.attachments.length} media
+                            {p.attachments.length > 1 ? " (carousel)" : ""}
+                          </span>
+                        </li>
+                      ))}
+                  </ul>
+                  {publishMode === "schedule" && (
+                    <div className="mt-1 text-[11px] text-amber-700 dark:text-amber-300 pt-1 border-t border-zinc-200 dark:border-zinc-800">
+                      Lampiran belum bisa dijadwalkan otomatis. Pilih &ldquo;Posting Sekarang&rdquo;.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Struktur Balasan (jika lebih dari 1 post dipilih) */}
+              {activeSelectedPosts.length > 1 && (
+                <div className="space-y-1.5">
+                  <label className="block text-zinc-700 dark:text-zinc-300 font-medium">
+                    Struktur Balasan:
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(
+                      [
+                        [
+                          "root",
+                          "Balasan ke Post Pertama",
+                          "Semua balasan menempel langsung ke postingan pertama terpilih",
+                        ],
+                        ["chain", "Berantai", "Tiap post membalas post sebelumnya secara berurutan"],
+                      ] as const
+                    ).map(([mode, title, desc]) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setReplyMode(mode)}
+                        aria-pressed={replyMode === mode}
+                        className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                          replyMode === mode
+                            ? "bg-zinc-100 dark:bg-zinc-900 border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100"
+                            : "bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-850 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700"
+                        }`}
+                      >
+                        <div className="font-semibold">{title}</div>
+                        <div className="text-[11px] mt-0.5 opacity-80">{desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Publish Mode Selector (Now vs Queue) */}
               <div className="space-y-1.5">
-                <label className="block text-zinc-700 dark:text-zinc-300 font-medium">Metode Publikasi:</label>
+                <label className="block text-zinc-700 dark:text-zinc-300 font-medium">
+                  Metode Publikasi:
+                </label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
@@ -344,13 +721,17 @@ export const PublishModal: React.FC<Props> = ({
               {publishMode === "schedule" && (
                 <div className="p-3.5 rounded-xl bg-zinc-100/50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-850 space-y-3">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-zinc-700 dark:text-zinc-300 font-medium">Slot Waktu Prime-Time WIB:</span>
+                    <span className="text-zinc-700 dark:text-zinc-300 font-medium">
+                      Slot Waktu Prime-Time WIB:
+                    </span>
                     <div className="flex gap-1">
                       <button
                         type="button"
                         onClick={() => setDaysOffset(0)}
                         className={`px-2 py-0.5 rounded text-[11px] ${
-                          daysOffset === 0 ? "bg-zinc-200 dark:bg-zinc-800 text-white font-medium" : "text-zinc-500 dark:text-zinc-400"
+                          daysOffset === 0
+                            ? "bg-zinc-200 dark:bg-zinc-800 text-white font-medium"
+                            : "text-zinc-500 dark:text-zinc-400"
                         }`}
                       >
                         Hari Ini
@@ -359,7 +740,9 @@ export const PublishModal: React.FC<Props> = ({
                         type="button"
                         onClick={() => setDaysOffset(1)}
                         className={`px-2 py-0.5 rounded text-[11px] ${
-                          daysOffset === 1 ? "bg-zinc-200 dark:bg-zinc-800 text-white font-medium" : "text-zinc-500 dark:text-zinc-400"
+                          daysOffset === 1
+                            ? "bg-zinc-200 dark:bg-zinc-800 text-white font-medium"
+                            : "text-zinc-500 dark:text-zinc-400"
                         }`}
                       >
                         Besok
@@ -383,7 +766,9 @@ export const PublishModal: React.FC<Props> = ({
                           }`}
                         >
                           <div className="capitalize">{slot}</div>
-                          <div className="text-[10px] text-zinc-500 font-mono mt-0.5">{times[slot as "pagi" | "siang" | "malam"]}</div>
+                          <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                            {times[slot as "pagi" | "siang" | "malam"]}
+                          </div>
                         </button>
                       );
                     })}
@@ -398,46 +783,19 @@ export const PublishModal: React.FC<Props> = ({
                 </div>
               )}
 
+              {/* Topic Tag */}
+              <div className="p-2.5 rounded-xl bg-zinc-100/30 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-850 flex items-center justify-between">
+                <span className="text-xs text-zinc-500 dark:text-zinc-400">Topic Tag:</span>
+                <span className="font-medium text-zinc-800 dark:text-zinc-200 text-xs">
+                  #{topicTag || "Umum"}
+                </span>
+              </div>
+
               {/* Error Alert */}
               {error && (
                 <div className="p-3 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
                   <span>{error}</span>
-                </div>
-              )}
-
-              {/* Post 1 Caption Preview */}
-              <div className="p-3.5 rounded-xl bg-zinc-100/30 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-850 space-y-1.5">
-                <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400">
-                  <span className="font-medium text-zinc-700 dark:text-zinc-300">Teks Postingan Utama (#1)</span>
-                  <span>{mainPostText.length}/500 karakter</span>
-                </div>
-                <p className="text-xs text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap leading-relaxed max-h-28 overflow-y-auto">
-                  {mainPostText}
-                </p>
-              </div>
-
-              {/* Topic Tag */}
-              <div className="p-2.5 rounded-xl bg-zinc-100/30 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-850 flex items-center justify-between">
-                <span className="text-xs text-zinc-500 dark:text-zinc-400">Topic Tag:</span>
-                <span className="font-medium text-zinc-800 dark:text-zinc-200 text-xs">
-                  {topicTag || "Umum"}
-                </span>
-              </div>
-
-              {/* Reply 4 Preview */}
-              {reply2Text && (
-                <div className="p-3 rounded-xl bg-zinc-100/30 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-850 space-y-1">
-                  <span className="font-medium text-zinc-500 dark:text-zinc-400 text-[11px]">
-                    {`Reply ke-${variant.posts?.length ? variant.posts.length + 1 : 4} (${
-                      (variant.goal || "").toLowerCase() === "konversi"
-                        ? "Tautan / CTA"
-                        : (variant.goal || "").toLowerCase() === "kedekatan"
-                        ? "Refleksi Komunitas"
-                        : "Pemantik Diskusi"
-                    }):`}
-                  </span>
-                  <p className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed truncate">{reply2Text}</p>
                 </div>
               )}
 
@@ -449,7 +807,7 @@ export const PublishModal: React.FC<Props> = ({
                     <span>{progressStatus}</span>
                   </div>
                   <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                    Meta Threads memproses container media sebelum dipublikasikan. Mohon tunggu beberapa detik...
+                    Meta Threads sedang memproses pembuatan kontainer dan publikasi postingan...
                   </p>
                 </div>
               )}
@@ -467,7 +825,11 @@ export const PublishModal: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={handleAction}
-                  disabled={publishing || (publishMode === "now" && !account)}
+                  disabled={
+                    publishing ||
+                    (publishMode === "now" && !account) ||
+                    activeSelectedPosts.length === 0
+                  }
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-white text-white dark:text-zinc-950 transition disabled:opacity-40 cursor-pointer shadow-xs"
                 >
                   {publishing ? (
@@ -478,12 +840,16 @@ export const PublishModal: React.FC<Props> = ({
                   ) : publishMode === "schedule" ? (
                     <>
                       <Clock className="w-3.5 h-3.5" />
-                      <span>Tambahkan ke Antrean</span>
+                      <span>
+                        Jadwalkan ({activeSelectedPosts.length} Post)
+                      </span>
                     </>
                   ) : (
                     <>
                       <Send className="w-3.5 h-3.5" />
-                      <span>Posting Sekarang</span>
+                      <span>
+                        Posting Sekarang ({activeSelectedPosts.length} Post)
+                      </span>
                     </>
                   )}
                 </button>

@@ -99,6 +99,8 @@ export interface ThreadPostItem {
   text: string;
   char_count: number;
   media_suggestion?: string;
+  media?: any[];
+  mediaAttachments?: any[];
 }
 
 export interface VariantOutput {
@@ -111,6 +113,8 @@ export interface VariantOutput {
   reply_2: {
     text: string;
     contains_link: boolean;
+    media?: any[];
+    mediaAttachments?: any[];
   };
   topic_tag: string;
   closing_question: string;
