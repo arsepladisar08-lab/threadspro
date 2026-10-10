@@ -1,16 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import {
-  Sparkles,
-  Calendar,
-  CheckSquare,
-  MessageSquareText,
-  Search,
-  BarChart3,
-  Database,
-  ShieldCheck,
-  User,
-} from "lucide-react";
+import { MAIN_NAV, SECONDARY_NAV, isPathActive } from "../lib/navigation";
 import { UserProfile } from "../types";
 
 interface SidebarProps {
@@ -24,21 +14,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const location = useLocation();
 
-  const mainNav = [
-    { path: "/", label: "Generator Utas", icon: Sparkles, shortcut: "Alt+1" },
-    { path: "/kalender", label: "Kalender Konten", icon: Calendar, shortcut: "Alt+2" },
-    { path: "/cek", label: "Cek Utas", icon: CheckSquare, shortcut: "Alt+3" },
-    { path: "/balas", label: "Balas Komen", icon: MessageSquareText, shortcut: "Alt+4" },
-    { path: "/ulas", label: "Ulas Utas", icon: Search },
-    { path: "/metrik", label: "Metrik Tracker", icon: BarChart3, shortcut: "Alt+5" },
-    { path: "/bank", label: "Bank Referensi", icon: Database },
-  ];
-
-  const secondaryNav = [
-    { path: "/profil", label: "Pengaturan Profil", icon: User },
-    { path: "/onboarding", label: "Onboarding Threads", icon: ShieldCheck },
-  ];
-
   return (
     <aside
       className={`hidden lg:flex flex-col shrink-0 border-r border-zinc-200 dark:border-zinc-850 bg-white dark:bg-zinc-950 transition-all duration-200 ease-in-out select-none relative z-30 ${
@@ -48,20 +23,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
     >
       {/* Main Navigation Items */}
       <div className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5 scrollbar-none">
-        {mainNav.map((item) => {
+        {MAIN_NAV.map((item) => {
           const Icon = item.icon;
-          const isActive = location.pathname === item.path;
+          const isActive = isPathActive(location.pathname, item.path);
 
           return (
             <Link
               key={item.path}
               to={item.path}
+              aria-current={isActive ? "page" : undefined}
               className={`flex items-center gap-3 px-2.5 py-2 rounded-lg text-xs font-medium transition group relative ${
                 isActive
                   ? "bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 font-semibold"
                   : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
               } ${isCollapsed ? "justify-center px-0" : "justify-between"}`}
-              title={isCollapsed ? `${item.label} (${item.shortcut || ""})` : undefined}
+              title={isCollapsed ? (item.shortcut ? `${item.label} (${item.shortcut})` : item.label) : undefined}
             >
               <div className="flex items-center gap-3 min-w-0">
                 <Icon
@@ -99,16 +75,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="my-2 border-t border-zinc-200 dark:border-zinc-850" />
 
         {/* Secondary Nav */}
-        {secondaryNav.map((item) => {
+        {SECONDARY_NAV.map((item) => {
           const Icon = item.icon;
-          const isActive = item.path.includes("?")
-            ? `${location.pathname}${location.search}` === item.path
-            : location.pathname === item.path;
+          const isActive = isPathActive(location.pathname, item.path);
 
           return (
             <Link
               key={item.path}
               to={item.path}
+              aria-current={isActive ? "page" : undefined}
               className={`flex items-center gap-3 px-2.5 py-2 rounded-lg text-xs font-medium transition group relative ${
                 isActive
                   ? "bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 font-semibold"

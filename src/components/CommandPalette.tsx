@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Search,
   Sparkles,
+  Link2,
   Calendar,
   ShieldCheck,
   MessageSquare,
@@ -58,6 +59,15 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       icon: Sparkles,
       shortcut: "Alt + 1",
       action: () => navigate("/"),
+    },
+    {
+      id: "nav-link",
+      category: "Navigasi",
+      title: "Link Lab (Bedah Video YouTube)",
+      description: "Ubah video YouTube jadi 5 angle & 3 varian utas Threads",
+      icon: Link2,
+      shortcut: "Alt + 6",
+      action: () => navigate("/link"),
     },
     {
       id: "nav-kalender",

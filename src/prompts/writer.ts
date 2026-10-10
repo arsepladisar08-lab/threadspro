@@ -36,6 +36,10 @@ ${CORE_CONTENT_RULES}
 - ESTIMASI TETAP ESTIMASI: angka berlabel estimasi dari Idea DNA wajib tetap ditulis sebagai kisaran dengan penanda jujur di utas, tidak boleh berubah jadi angka pengalaman pribadi.
 - SLOT KOSONG: jika pola butuh fakta yang tidak dimiliki user, isi dengan cara yang jujur (A2 poin b–d) atau sederhanakan polanya. Jangan memakai placeholder (A1) dan jangan mengarang (A3).
 
+# STRUKTUR UTAS & BALASAN
+- Post 1 adalah postingan utama. Post 2 dan seterusnya diterbitkan sebagai BALASAN langsung ke Post 1 oleh akun yang sama, lalu reply_2 menjadi balasan penutup paling akhir.
+- Tulis post 2 dan seterusnya sebagai lanjutan yang enak dibaca tepat di bawah Post 1: jangan mengulang hook, jangan memakai salam pembuka, jangan menulis penomoran seperti "Post 2". Satu post = satu poin.
+
 # DIFERENSIASI 3 VARIAN
 - Tiap varian WAJIB memakai template yang berbeda, dan sebaiknya kartu referensi utama yang berbeda (1 varian = 1 kartu).
 - Usahakan goal antarvarian berbeda, kecuali profil atau ide pengguna jelas hanya mengarah ke satu goal.

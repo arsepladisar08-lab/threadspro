@@ -1,18 +1,7 @@
 import React, { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import {
-  X,
-  Sparkles,
-  Calendar,
-  CheckSquare,
-  MessageSquareText,
-  Search,
-  BarChart3,
-  Database,
-  ShieldCheck,
-  BookOpen,
-  User,
-} from "lucide-react";
+import { X, BookOpen } from "lucide-react";
+import { MAIN_NAV, SECONDARY_NAV, isPathActive } from "../lib/navigation";
 import { UserProfile } from "../types";
 
 interface MobileDrawerProps {
@@ -48,20 +37,10 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 
   if (!isOpen) return null;
 
-  const navLinks = [
-    { path: "/", label: "Generator Utas", icon: Sparkles },
-    { path: "/kalender", label: "Kalender Konten", icon: Calendar },
-    { path: "/cek", label: "Cek Utas", icon: CheckSquare },
-    { path: "/balas", label: "Balas Komen", icon: MessageSquareText },
-    { path: "/ulas", label: "Ulas Utas", icon: Search },
-    { path: "/metrik", label: "Metrik Tracker", icon: BarChart3 },
-    { path: "/bank", label: "Bank Referensi", icon: Database },
-    { path: "/profil", label: "Pengaturan Profil", icon: User },
-    { path: "/onboarding", label: "Onboarding Threads", icon: ShieldCheck },
-  ];
+  const navLinks = [...MAIN_NAV, ...SECONDARY_NAV];
 
   return (
-    <div className="fixed inset-0 z-50 lg:hidden flex justify-end">
+    <div className="fixed inset-0 z-50 lg:hidden flex justify-end" role="dialog" aria-modal="true" aria-label="Menu navigasi">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in"
@@ -133,15 +112,14 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
         <div className="flex-1 overflow-y-auto px-3 py-1 space-y-0.5 scrollbar-none">
           {navLinks.map((item) => {
             const Icon = item.icon;
-            const isActive = item.path.includes("?")
-              ? `${location.pathname}${location.search}` === item.path
-              : location.pathname === item.path;
+            const isActive = isPathActive(location.pathname, item.path);
 
             return (
               <Link
                 key={item.path}
                 to={item.path}
                 onClick={onClose}
+                aria-current={isActive ? "page" : undefined}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition ${
                   isActive
                     ? "bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 font-semibold"

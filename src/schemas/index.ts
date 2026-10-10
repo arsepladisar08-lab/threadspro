@@ -316,6 +316,64 @@ export const CalendarZodSchema = z.preprocess(
   })
 );
 
+export const YoutubeAngleItemZodSchema = z.preprocess(
+  (v: any) => ({
+    id: Number(v?.id) || 1,
+    angle_title: String(v?.angle_title || "Angle Utas"),
+    hook_preview: String(v?.hook_preview || ""),
+    summary: String(v?.summary || ""),
+    key_takeaways: Array.isArray(v?.key_takeaways) ? v.key_takeaways.map(String) : [],
+    suggested_goal: String(v?.suggested_goal || "Jangkauan"),
+  }),
+  z.object({
+    id: z.number().default(1),
+    angle_title: z.string().default("Angle Utas"),
+    hook_preview: z.string().default(""),
+    summary: z.string().default(""),
+    key_takeaways: z.array(z.string()).default([]),
+    suggested_goal: z.string().default("Jangkauan"),
+  })
+);
+
+export const YoutubeAnglesOutputZodSchema = z.preprocess(
+  (v: any) => ({
+    video_title: String(v?.video_title || "Video YouTube"),
+    creator_name: String(v?.creator_name || "Kreator YouTube"),
+    video_summary: String(v?.video_summary || ""),
+    angles: Array.isArray(v?.angles) ? v.angles : [],
+  }),
+  z.object({
+    video_title: z.string().default("Video YouTube"),
+    creator_name: z.string().default("Kreator YouTube"),
+    video_summary: z.string().default(""),
+    angles: z.array(YoutubeAngleItemZodSchema).min(1).default([]),
+  })
+);
+
+export const AffiliateProductZodSchema = z.preprocess(
+  (v: any) => ({
+    product_name: String(v?.product_name || "Produk Affiliate"),
+    price: String(v?.price || "Rp99.000"),
+    features:
+      Array.isArray(v?.features) && v.features.length > 0
+        ? v.features.map(String)
+        : [
+            "Bahan berkualitas dan tahan lama",
+            "Membantu menghemat waktu dan tenaga",
+            "Harga terjangkau dengan nilai guna tinggi",
+          ],
+    target_audience: String(v?.target_audience || "Pengguna yang mencari solusi praktis"),
+    niche_category: String(v?.niche_category || "Produk Bermanfaat"),
+  }),
+  z.object({
+    product_name: z.string().default("Produk Affiliate"),
+    price: z.string().default("Rp99.000"),
+    features: z.array(z.string()).default([]),
+    target_audience: z.string().default("Pengguna yang mencari solusi praktis"),
+    niche_category: z.string().default("Produk Bermanfaat"),
+  })
+);
+
 // ==================== GEMINI RESPONSE SCHEMAS ====================
 
 export const GEMINI_IDEA_DNA_SCHEMA = {
@@ -594,4 +652,47 @@ export const GEMINI_CALENDAR_SCHEMA = {
     summaryRationale: { type: Type.STRING },
   },
   required: ["days", "weeklyTheme", "summaryRationale"],
+};
+
+export const GEMINI_YOUTUBE_ANGLES_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    video_title: { type: Type.STRING },
+    creator_name: { type: Type.STRING },
+    video_summary: { type: Type.STRING },
+    angles: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          id: { type: Type.INTEGER },
+          angle_title: { type: Type.STRING },
+          hook_preview: { type: Type.STRING },
+          summary: { type: Type.STRING },
+          key_takeaways: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+          },
+          suggested_goal: { type: Type.STRING },
+        },
+        required: ["id", "angle_title", "hook_preview", "summary", "key_takeaways", "suggested_goal"],
+      },
+    },
+  },
+  required: ["video_title", "creator_name", "video_summary", "angles"],
+};
+
+export const GEMINI_AFFILIATE_PRODUCT_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    product_name: { type: Type.STRING },
+    price: { type: Type.STRING },
+    features: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+    },
+    target_audience: { type: Type.STRING },
+    niche_category: { type: Type.STRING },
+  },
+  required: ["product_name", "price", "features", "target_audience", "niche_category"],
 };

@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Navbar } from "./components/Navbar";
 import { Sidebar } from "./components/Sidebar";
 import { BottomNav } from "./components/BottomNav";
@@ -12,6 +12,7 @@ import { MobileDrawer } from "./components/MobileDrawer";
 import { UserGuideModal } from "./components/UserGuideModal";
 import { CommandPalette } from "./components/CommandPalette";
 import { GeneratorPage } from "./pages/GeneratorPage";
+import { LinkLabPage } from "./pages/LinkLabPage";
 import { CalendarPage } from "./pages/CalendarPage";
 import { CheckerPage } from "./pages/CheckerPage";
 import { ReplyPage } from "./pages/ReplyPage";
@@ -26,23 +27,19 @@ import { UserProfile } from "./types";
 import { useTheme } from "./hooks/useTheme";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 
-interface ProtectedRouteProps {
-  isOnboarded: boolean | null;
-  children: React.ReactElement;
+function PageSpinner() {
+  return (
+    <div className="flex-1 flex items-center justify-center min-h-[50vh]" role="status" aria-label="Memuat">
+      <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
 }
 
-function ProtectedRoute({ isOnboarded, children }: ProtectedRouteProps) {
-  if (isOnboarded === null) {
-    return (
-      <div className="flex-1 flex items-center justify-center min-h-[50vh]">
-        <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-  if (!isOnboarded) {
-    return <Navigate to="/onboarding" replace />;
-  }
-  return children;
+/** Layout route: semua rute anak hanya bisa diakses setelah onboarding selesai. */
+function ProtectedLayout({ isOnboarded }: { isOnboarded: boolean | null }) {
+  if (isOnboarded === null) return <PageSpinner />;
+  if (!isOnboarded) return <Navigate to="/onboarding" replace />;
+  return <Outlet />;
 }
 
 function AppContent() {
@@ -135,80 +132,28 @@ function AppContent() {
         {/* Dynamic Route Content */}
         <main className="flex-1 min-w-0 w-full overflow-x-hidden pb-20 lg:pb-8">
           <Routes>
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute isOnboarded={isOnboarded}>
-                  <GeneratorPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/generator" element={<Navigate to="/" replace />} />
-            <Route
-              path="/kalender"
-              element={
-                <ProtectedRoute isOnboarded={isOnboarded}>
-                  <CalendarPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/cek"
-              element={
-                <ProtectedRoute isOnboarded={isOnboarded}>
-                  <CheckerPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/balas"
-              element={
-                <ProtectedRoute isOnboarded={isOnboarded}>
-                  <ReplyPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/ulas"
-              element={
-                <ProtectedRoute isOnboarded={isOnboarded}>
-                  <ReviewPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/metrik"
-              element={
-                <ProtectedRoute isOnboarded={isOnboarded}>
-                  <MetricsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/bank"
-              element={
-                <ProtectedRoute isOnboarded={isOnboarded}>
-                  <BankPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/bank"
-              element={
-                <ProtectedRoute isOnboarded={isOnboarded}>
-                  <BankPage />
-                </ProtectedRoute>
-              }
-            />
+            {/* Rute yang memerlukan onboarding selesai */}
+            <Route element={<ProtectedLayout isOnboarded={isOnboarded} />}>
+              <Route path="/" element={<GeneratorPage />} />
+              <Route path="/link" element={<LinkLabPage />} />
+              <Route path="/kalender" element={<CalendarPage />} />
+              <Route path="/cek" element={<CheckerPage />} />
+              <Route path="/balas" element={<ReplyPage />} />
+              <Route path="/ulas" element={<ReviewPage />} />
+              <Route path="/metrik" element={<MetricsPage />} />
+              <Route path="/bank" element={<BankPage />} />
+              <Route path="/admin/bank" element={<Navigate to="/bank" replace />} />
+            </Route>
+
+            {/* Rute publik */}
             <Route path="/profil" element={<ProfilePage />} />
-            <Route path="/settings" element={<ProfilePage />} />
-            <Route path="/pengaturan" element={<ProfilePage />} />
-            <Route path="/api-lab" element={<Navigate to="/profil" replace />} />
-            <Route path="/admin/api-lab" element={<Navigate to="/profil" replace />} />
-            <Route path="/api-key" element={<Navigate to="/profil" replace />} />
-            <Route path="/gemini" element={<Navigate to="/profil" replace />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
-            <Route path="/onboarding" element={<OnboardingPage />} />
+
+            {/* Alias lama dialihkan ke rute kanonis */}
+            <Route path="/generator" element={<Navigate to="/" replace />} />
+            {["/settings", "/pengaturan", "/api-lab", "/admin/api-lab", "/api-key", "/gemini"].map((path) => (
+              <Route key={path} path={path} element={<Navigate to="/profil" replace />} />
+            ))}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

@@ -5,3 +5,5 @@ export * from "./critic";
 export * from "./reply";
 export * from "./review";
 export * from "./calendar";
+export * from "./youtube";
+export * from "./affiliate";

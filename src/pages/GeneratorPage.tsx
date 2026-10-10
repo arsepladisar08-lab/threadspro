@@ -7,6 +7,8 @@ import { generateJSON, generateFactsAssistance } from "../services/ai";
 import { PublishModal } from "../components/PublishModal";
 import { VisualCardGenerator, VisualTheme, AspectRatio } from "../components/VisualCardGenerator";
 import { GeminiApiKeyModal } from "../components/GeminiApiKeyModal";
+import { MediaAttachments } from "../components/MediaAttachments";
+import { AttachedMedia, revokeAttachment } from "../services/mediaUpload";
 import {
   Sparkles,
   Copy,
@@ -52,6 +54,15 @@ export const GeneratorPage: React.FC = () => {
   const [publishModalVariant, setPublishModalVariant] = useState<VariantOutput | null>(null);
   const [visualGeneratorVariant, setVisualGeneratorVariant] = useState<VariantOutput | null>(null);
   const [showTrace, setShowTrace] = useState(false);
+
+  // Lampiran media (gambar/video) global: berlaku untuk semua varian
+  const [mediaAttachments, setMediaAttachments] = useState<AttachedMedia[]>([]);
+  const mediaAttachmentsRef = useRef<AttachedMedia[]>([]);
+  mediaAttachmentsRef.current = mediaAttachments;
+  useEffect(() => {
+    // Lepaskan object URL pratinjau saat halaman ditutup
+    return () => mediaAttachmentsRef.current.forEach(revokeAttachment);
+  }, []);
 
   // File Upload State
   const [uploadedFiles, setUploadedFiles] = useState<UploadedDocFile[]>([]);
@@ -427,12 +438,12 @@ export const GeneratorPage: React.FC = () => {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 pb-28">
       {/* Calm Header */}
-      <div className="mb-8 flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 border-b border-zinc-900 pb-5">
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 border-b border-zinc-200 dark:border-zinc-900 pb-5">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-100 tracking-tight">
+          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
             Generator Utas
           </h1>
-          <p className="text-xs text-zinc-400 mt-1">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
             Fusi ide kasar menjadi draf utas berdaya jangkau tinggi tanpa sensasionalisme.
           </p>
         </div>
@@ -441,10 +452,10 @@ export const GeneratorPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsGeminiModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-zinc-900 hover:bg-zinc-850 text-zinc-300 border border-zinc-800 transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-850 text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-800 transition cursor-pointer"
             title="Kelola Input Kunci API Gemini Mandiri"
           >
-            <Sparkles className="w-3.5 h-3.5 text-zinc-400" />
+            <Sparkles className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
             <span>Kunci Gemini</span>
             <span
               className={`w-1.5 h-1.5 rounded-full ${
@@ -454,8 +465,8 @@ export const GeneratorPage: React.FC = () => {
           </button>
 
           {profile?.niche && (
-            <div className="text-xs text-zinc-400 font-mono hidden sm:block">
-              Niche: <span className="text-zinc-300 font-medium">{profile.niche}</span>
+            <div className="text-xs text-zinc-500 dark:text-zinc-400 font-mono hidden sm:block">
+              Niche: <span className="text-zinc-700 dark:text-zinc-300 font-medium">{profile.niche}</span>
             </div>
           )}
         </div>
@@ -463,23 +474,23 @@ export const GeneratorPage: React.FC = () => {
 
       {/* Error & Info Alerts */}
       {errorMessage && (
-        <div className="mb-6 p-3.5 rounded-xl bg-zinc-900 border border-rose-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-rose-300">
+        <div className="mb-6 p-3.5 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-rose-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-rose-700 dark:text-rose-300">
           <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
             <span>{errorMessage}</span>
           </div>
           <div className="flex items-center gap-2 self-end sm:self-auto">
             <button
               type="button"
               onClick={() => setIsGeminiModalOpen(true)}
-              className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-750 text-zinc-200 text-xs font-medium transition cursor-pointer shrink-0"
+              className="px-2.5 py-1 rounded-lg bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-750 text-zinc-800 dark:text-zinc-200 text-xs font-medium transition cursor-pointer shrink-0"
             >
               Atur Kunci Gemini
             </button>
             <button
               type="button"
               onClick={() => setErrorMessage(null)}
-              className="text-zinc-400 hover:text-white px-1"
+              className="text-zinc-500 dark:text-zinc-400 hover:text-white px-1"
             >
               ✕
             </button>
@@ -488,12 +499,12 @@ export const GeneratorPage: React.FC = () => {
       )}
 
       {generationNotice && (
-        <div className="mb-6 p-3 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 flex items-center justify-between">
+        <div className="mb-6 p-3 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-xs text-zinc-700 dark:text-zinc-300 flex items-center justify-between">
           <span>{generationNotice}</span>
           <button
             type="button"
             onClick={() => setGenerationNotice(null)}
-            className="text-zinc-500 hover:text-white"
+            className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
           >
             ✕
           </button>
@@ -504,10 +515,10 @@ export const GeneratorPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Quiet Writing Form */}
         <div className="lg:col-span-5 space-y-5">
-          <form onSubmit={handleGenerate} className="rounded-2xl border border-zinc-900 bg-zinc-900/20 p-5 space-y-5">
+          <form onSubmit={handleGenerate} className="rounded-2xl border border-zinc-200 dark:border-zinc-900 bg-zinc-100/20 dark:bg-zinc-900/20 p-5 space-y-5">
             {/* Field 1: Ide Kasar */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-zinc-300">
+              <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
                 Ide atau Keresahan
               </label>
               <textarea
@@ -516,16 +527,16 @@ export const GeneratorPage: React.FC = () => {
                 value={rawIdea}
                 onChange={(e) => setRawIdea(e.target.value)}
                 placeholder="Contoh: Akhir bulan gaji selalu habis bukan karena belanja besar, tapi bocor halus di kopi dan promo pesan antar..."
-                className="w-full p-3 rounded-xl bg-zinc-950 border border-zinc-850 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-hidden focus:border-zinc-600 leading-relaxed transition"
+                className="w-full p-3 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-850 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-hidden focus:border-zinc-400 dark:focus:border-zinc-600 leading-relaxed transition"
               />
             </div>
 
             {/* Field 2: Target Konten (Segmented Pill) */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-zinc-300">
+              <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
                 Fokus Sasaran
               </label>
-              <div className="grid grid-cols-3 p-1 rounded-xl bg-zinc-950 border border-zinc-850 text-xs">
+              <div className="grid grid-cols-3 p-1 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-850 text-xs">
                 {(["Jangkauan", "Kedekatan", "Konversi"] as GoalType[]).map((g) => (
                   <button
                     type="button"
@@ -533,8 +544,8 @@ export const GeneratorPage: React.FC = () => {
                     onClick={() => setGoal(g)}
                     className={`py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
                       goal === g
-                        ? "bg-zinc-800 text-zinc-100 font-semibold shadow-xs"
-                        : "text-zinc-400 hover:text-zinc-200"
+                        ? "bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-semibold shadow-xs"
+                        : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
                     }`}
                   >
                     {g}
@@ -546,7 +557,7 @@ export const GeneratorPage: React.FC = () => {
             {/* Field 3: Fakta & Konteks (Opsional) */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <label className="font-medium text-zinc-300">
+                <label className="font-medium text-zinc-700 dark:text-zinc-300">
                   Fakta / Angka (Opsional)
                 </label>
                 <div className="flex items-center gap-3">
@@ -554,9 +565,9 @@ export const GeneratorPage: React.FC = () => {
                     type="button"
                     onClick={handleAiAssistFacts}
                     disabled={isAssistingFacts}
-                    className="text-zinc-400 hover:text-zinc-200 transition text-[11px] flex items-center gap-1 cursor-pointer"
+                    className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition text-[11px] flex items-center gap-1 cursor-pointer"
                   >
-                    <Sparkles className="w-3 h-3 text-zinc-400" />
+                    <Sparkles className="w-3 h-3 text-zinc-500 dark:text-zinc-400" />
                     <span>{isAssistingFacts ? "Meracik..." : "Bantu AI"}</span>
                   </button>
 
@@ -564,7 +575,7 @@ export const GeneratorPage: React.FC = () => {
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isReadingFile}
-                    className="text-zinc-400 hover:text-zinc-200 transition text-[11px] flex items-center gap-1 cursor-pointer"
+                    className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition text-[11px] flex items-center gap-1 cursor-pointer"
                   >
                     <Upload className="w-3 h-3" />
                     <span>Lampirkan</span>
@@ -587,14 +598,14 @@ export const GeneratorPage: React.FC = () => {
                   {uploadedFiles.map((file, idx) => (
                     <div
                       key={idx}
-                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300"
+                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-[11px] text-zinc-700 dark:text-zinc-300"
                     >
                       <Paperclip className="w-2.5 h-2.5 text-zinc-500" />
                       <span className="truncate max-w-[120px]">{file.name}</span>
                       <button
                         type="button"
                         onClick={() => handleRemoveFile(idx)}
-                        className="text-zinc-500 hover:text-zinc-300 p-0.5"
+                        className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 p-0.5"
                       >
                         <X className="w-2.5 h-2.5" />
                       </button>
@@ -608,7 +619,7 @@ export const GeneratorPage: React.FC = () => {
                 value={realFacts}
                 onChange={(e) => setRealFacts(e.target.value)}
                 placeholder="Angka riil, pengalaman pribadi, atau klik 'Bantu AI' untuk estimasi realistis..."
-                className="w-full p-2.5 rounded-xl bg-zinc-950 border border-zinc-850 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-hidden focus:border-zinc-600 leading-relaxed transition"
+                className="w-full p-2.5 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-850 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-hidden focus:border-zinc-400 dark:focus:border-zinc-600 leading-relaxed transition"
               />
             </div>
 
@@ -640,8 +651,11 @@ export const GeneratorPage: React.FC = () => {
         <div className="lg:col-span-7 space-y-4">
           {result && result.variants && result.variants.length > 0 ? (
             <div className="space-y-4">
+              {/* Lampiran media: berlaku untuk semua varian */}
+              <MediaAttachments items={mediaAttachments} onChange={setMediaAttachments} />
+
               {/* Calm Horizontal Variant Switcher */}
-              <div className="flex items-center gap-1 border-b border-zinc-900 pb-2">
+              <div className="flex items-center gap-1 border-b border-zinc-200 dark:border-zinc-900 pb-2">
                 {result.variants.map((v, idx) => {
                   const isActive = activeVariantIdx === idx;
                   return (
@@ -651,12 +665,12 @@ export const GeneratorPage: React.FC = () => {
                       onClick={() => setActiveVariantIdx(idx)}
                       className={`px-3 py-1.5 rounded-lg text-xs transition cursor-pointer ${
                         isActive
-                          ? "bg-zinc-900 text-zinc-100 font-medium"
-                          : "text-zinc-400 hover:text-zinc-200"
+                          ? "bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 font-medium"
+                          : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
                       }`}
                     >
                       <span>Varian {idx + 1}</span>
-                      <span className="text-zinc-400 ml-1.5 font-normal">
+                      <span className="text-zinc-500 dark:text-zinc-400 ml-1.5 font-normal">
                         ({v.template.replace(/_/g, " ")})
                       </span>
                     </button>
@@ -666,20 +680,20 @@ export const GeneratorPage: React.FC = () => {
 
               {/* Active Variant Thread View */}
               {currentVariant && (
-                <div className="rounded-2xl border border-zinc-900 bg-zinc-950/60 p-5 space-y-5">
+                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-900 bg-white/60 dark:bg-zinc-950/60 p-5 space-y-5">
                   {/* Subtle Jejak Fusi Link */}
-                  <div className="flex items-center justify-between text-xs text-zinc-400 border-b border-zinc-900/80 pb-3">
+                  <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-900/80 pb-3">
                     <button
                       type="button"
                       onClick={() => setShowTrace(!showTrace)}
-                      className="inline-flex items-center gap-1 text-[11px] text-zinc-400 hover:text-zinc-300 transition cursor-pointer"
+                      className="inline-flex items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition cursor-pointer"
                     >
                       <Wand2 className="w-3 h-3" />
                       <span>{showTrace ? "Sembunyikan jejak fusi" : "Lihat jejak fusi pola"}</span>
                       {showTrace ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                     </button>
 
-                    <div className="flex items-center gap-3 text-[11px] text-zinc-400">
+                    <div className="flex items-center gap-3 text-[11px] text-zinc-500 dark:text-zinc-400">
                       <span>{currentVariant.topic_tag.replace(/#/g, "")}</span>
                       <span>·</span>
                       <span>{currentVariant.best_time_wib}</span>
@@ -687,12 +701,12 @@ export const GeneratorPage: React.FC = () => {
                   </div>
 
                   {showTrace && currentVariant.fusion_trace && (
-                    <div className="p-3 rounded-xl bg-zinc-900/40 border border-zinc-850 text-xs text-zinc-400 space-y-1">
+                    <div className="p-3 rounded-xl bg-zinc-100/40 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-850 text-xs text-zinc-500 dark:text-zinc-400 space-y-1">
                       <p>
-                        <strong className="text-zinc-300">Pola:</strong> {currentVariant.fusion_trace.pola_dipinjam}
+                        <strong className="text-zinc-700 dark:text-zinc-300">Pola:</strong> {currentVariant.fusion_trace.pola_dipinjam}
                       </p>
                       <p>
-                        <strong className="text-zinc-300">Transformasi:</strong> {currentVariant.fusion_trace.perubahan_dari_ide_kasar}
+                        <strong className="text-zinc-700 dark:text-zinc-300">Transformasi:</strong> {currentVariant.fusion_trace.perubahan_dari_ide_kasar}
                       </p>
                     </div>
                   )}
@@ -701,7 +715,7 @@ export const GeneratorPage: React.FC = () => {
                   <div className="space-y-4 relative">
                     {/* Connecting line */}
                     {currentVariant.posts.length > 1 && (
-                      <div className="absolute left-3.5 top-6 bottom-4 w-px bg-zinc-800 -z-0" />
+                      <div className="absolute left-3.5 top-6 bottom-4 w-px bg-zinc-200 dark:bg-zinc-800 -z-0" />
                     )}
 
                     {currentVariant.posts.map((post, pIdx) => {
@@ -711,19 +725,19 @@ export const GeneratorPage: React.FC = () => {
                       return (
                         <div key={pIdx} className="relative flex gap-3 text-xs z-10">
                           {/* Thread Node / Avatar */}
-                          <div className="w-7 h-7 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center font-bold text-[10px] text-zinc-300 shrink-0">
+                          <div className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 flex items-center justify-center font-bold text-[10px] text-zinc-700 dark:text-zinc-300 shrink-0">
                             {pIdx === 0 ? "@" : pIdx + 1}
                           </div>
 
                           {/* Post Content Box */}
-                          <div className="flex-1 min-w-0 p-3.5 rounded-xl bg-zinc-900/30 border border-zinc-850/80 space-y-2">
-                            <div className="flex items-center justify-between text-[11px] text-zinc-400">
-                              <span className="font-medium text-zinc-300">
+                          <div className="flex-1 min-w-0 p-3.5 rounded-xl bg-zinc-100/30 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-850/80 space-y-2">
+                            <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400">
+                              <span className="font-medium text-zinc-700 dark:text-zinc-300">
                                 {pIdx === 0 ? "Post Utama (#1)" : `Post #${post.order}`}
                               </span>
 
                               <div className="flex items-center gap-2">
-                                <span className={charCount > 500 ? "text-rose-400" : "text-zinc-400 font-mono"}>
+                                <span className={charCount > 500 ? "text-rose-400" : "text-zinc-500 dark:text-zinc-400 font-mono"}>
                                   {charCount}/500
                                 </span>
                                 {!isEditing ? (
@@ -734,7 +748,7 @@ export const GeneratorPage: React.FC = () => {
                                         setEditingPostIdx(pIdx);
                                         setEditingPostText(post.text);
                                       }}
-                                      className="p-1 text-zinc-400 hover:text-zinc-200 transition"
+                                      className="p-1 text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition"
                                       title="Edit post"
                                     >
                                       <Edit3 className="w-3 h-3" />
@@ -742,11 +756,11 @@ export const GeneratorPage: React.FC = () => {
                                     <button
                                       type="button"
                                       onClick={() => handleCopyPost(post.text, pIdx)}
-                                      className="p-1 text-zinc-400 hover:text-zinc-200 transition"
+                                      className="p-1 text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition"
                                       title="Salin post ini"
                                     >
                                       {copiedPostIdx === pIdx ? (
-                                        <Check className="w-3 h-3 text-emerald-400" />
+                                        <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                                       ) : (
                                         <Copy className="w-3 h-3" />
                                       )}
@@ -757,14 +771,14 @@ export const GeneratorPage: React.FC = () => {
                                     <button
                                       type="button"
                                       onClick={() => setEditingPostIdx(null)}
-                                      className="px-2 py-0.5 rounded text-[10px] bg-zinc-800 text-zinc-300 hover:text-white"
+                                      className="px-2 py-0.5 rounded text-[10px] bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-white"
                                     >
                                       Batal
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => handleSavePostEdit(pIdx)}
-                                      className="px-2 py-0.5 rounded text-[10px] bg-zinc-100 text-zinc-950 font-semibold hover:bg-white"
+                                      className="px-2 py-0.5 rounded text-[10px] bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 font-semibold hover:bg-zinc-800 dark:hover:bg-white"
                                     >
                                       Simpan
                                     </button>
@@ -778,11 +792,11 @@ export const GeneratorPage: React.FC = () => {
                                 rows={4}
                                 value={editingPostText}
                                 onChange={(e) => setEditingPostText(e.target.value)}
-                                className="w-full p-2.5 rounded-lg bg-zinc-950 border border-zinc-700 text-xs text-zinc-100 focus:outline-hidden leading-relaxed"
+                                className="w-full p-2.5 rounded-lg bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-hidden leading-relaxed"
                                 autoFocus
                               />
                             ) : (
-                              <p className="text-xs text-zinc-200 whitespace-pre-wrap leading-relaxed">
+                              <p className="text-xs text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap leading-relaxed">
                                 {post.text}
                               </p>
                             )}
@@ -794,13 +808,13 @@ export const GeneratorPage: React.FC = () => {
                     {/* Connected Reply #2 */}
                     {currentVariant.reply_2 && (
                       <div className="relative flex gap-3 text-xs z-10 pt-1">
-                        <div className="w-7 h-7 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center font-bold text-[10px] text-zinc-400 shrink-0">
+                        <div className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 flex items-center justify-center font-bold text-[10px] text-zinc-500 dark:text-zinc-400 shrink-0">
                           R2
                         </div>
 
-                        <div className="flex-1 min-w-0 p-3.5 rounded-xl bg-zinc-900/20 border border-zinc-850/60 space-y-1.5">
-                          <div className="flex items-center justify-between text-[11px] text-zinc-400">
-                            <span className="font-medium text-zinc-400">
+                        <div className="flex-1 min-w-0 p-3.5 rounded-xl bg-zinc-100/20 dark:bg-zinc-900/20 border border-zinc-200 dark:border-zinc-850/60 space-y-1.5">
+                          <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400">
+                            <span className="font-medium text-zinc-500 dark:text-zinc-400">
                               Reply ke-2 (Tautan / CTA)
                             </span>
                             {!isEditingReply2 ? (
@@ -810,7 +824,7 @@ export const GeneratorPage: React.FC = () => {
                                   setIsEditingReply2(true);
                                   setEditingReply2Text(currentVariant.reply_2?.text || "");
                                 }}
-                                className="p-1 text-zinc-400 hover:text-zinc-200"
+                                className="p-1 text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
                               >
                                 <Edit3 className="w-3 h-3" />
                               </button>
@@ -819,14 +833,14 @@ export const GeneratorPage: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => setIsEditingReply2(false)}
-                                  className="px-2 py-0.5 rounded text-[10px] bg-zinc-800 text-zinc-300"
+                                  className="px-2 py-0.5 rounded text-[10px] bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
                                 >
                                   Batal
                                 </button>
                                 <button
                                   type="button"
                                   onClick={handleSaveReply2Edit}
-                                  className="px-2 py-0.5 rounded text-[10px] bg-zinc-100 text-zinc-950 font-semibold"
+                                  className="px-2 py-0.5 rounded text-[10px] bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 font-semibold"
                                 >
                                   Simpan
                                 </button>
@@ -839,11 +853,11 @@ export const GeneratorPage: React.FC = () => {
                               rows={2}
                               value={editingReply2Text}
                               onChange={(e) => setEditingReply2Text(e.target.value)}
-                              className="w-full p-2 rounded-lg bg-zinc-950 border border-zinc-700 text-xs text-zinc-100 focus:outline-hidden"
+                              className="w-full p-2 rounded-lg bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-hidden"
                               autoFocus
                             />
                           ) : (
-                            <p className="text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                            <p className="text-xs text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">
                               {currentVariant.reply_2.text}
                             </p>
                           )}
@@ -854,9 +868,9 @@ export const GeneratorPage: React.FC = () => {
 
                   {/* Visual Slides Preview Strip (if any) */}
                   {currentVariant.visual_slides && currentVariant.visual_slides.length > 0 && (
-                    <div className="pt-2 border-t border-zinc-900 flex items-center justify-between text-xs">
+                    <div className="pt-2 border-t border-zinc-200 dark:border-zinc-900 flex items-center justify-between text-xs">
                       <div className="flex items-center gap-2">
-                        <span className="text-zinc-400">
+                        <span className="text-zinc-500 dark:text-zinc-400">
                           {currentVariant.visual_slides.length} Slide Carousel
                         </span>
                         <div className="flex items-center gap-1">
@@ -865,7 +879,7 @@ export const GeneratorPage: React.FC = () => {
                               key={idx}
                               src={s}
                               alt="Slide"
-                              className="w-7 h-7 rounded border border-zinc-800 object-cover"
+                              className="w-7 h-7 rounded border border-zinc-300 dark:border-zinc-800 object-cover"
                             />
                           ))}
                         </div>
@@ -873,7 +887,7 @@ export const GeneratorPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setVisualGeneratorVariant(currentVariant)}
-                        className="text-zinc-400 hover:text-zinc-200 underline text-[11px]"
+                        className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 underline text-[11px]"
                       >
                         Ubah Slide
                       </button>
@@ -881,17 +895,17 @@ export const GeneratorPage: React.FC = () => {
                   )}
 
                   {/* Bottom Action Bar */}
-                  <div className="pt-4 border-t border-zinc-900 flex flex-wrap items-center justify-between gap-3">
+                  <div className="pt-4 border-t border-zinc-200 dark:border-zinc-900 flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => handleCopyAll(currentVariant)}
                         title="Salin Semua Post [⌘+⇧+C]"
-                        className="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-850 dark:bg-zinc-900 dark:hover:bg-zinc-850 text-zinc-300 text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
+                        className="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-850 dark:bg-zinc-900 dark:hover:bg-zinc-850 text-zinc-700 dark:text-zinc-300 text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
                       >
-                        {copiedAll ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        {copiedAll ? <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                         <span>{copiedAll ? "Tersalin" : "Salin Semua"}</span>
-                        <kbd className="hidden sm:inline-block ml-1 px-1.5 py-0.2 rounded bg-zinc-800 border border-zinc-700 text-[10px] font-mono text-zinc-400">
+                        <kbd className="hidden sm:inline-block ml-1 px-1.5 py-0.2 rounded bg-zinc-200 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-[10px] font-mono text-zinc-500 dark:text-zinc-400">
                           ⌘⇧C
                         </kbd>
                       </button>
@@ -899,7 +913,7 @@ export const GeneratorPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setVisualGeneratorVariant(currentVariant)}
-                        className="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-850 text-zinc-300 text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
+                        className="px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-850 text-zinc-700 dark:text-zinc-300 text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
                       >
                         <Palette className="w-3.5 h-3.5" />
                         <span>
@@ -913,7 +927,7 @@ export const GeneratorPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setPublishModalVariant(currentVariant)}
-                      className="px-4 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-sm"
+                      className="px-4 py-1.5 rounded-lg bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-white text-white dark:text-zinc-950 font-semibold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-sm"
                     >
                       <Send className="w-3.5 h-3.5" />
                       <span>Posting ke Threads</span>
@@ -924,14 +938,14 @@ export const GeneratorPage: React.FC = () => {
             </div>
           ) : (
             /* Calm Empty State */
-            <div className="rounded-2xl border border-zinc-900 bg-zinc-900/10 min-h-[360px] flex flex-col items-center justify-center p-8 text-center space-y-2">
-              <div className="w-10 h-10 rounded-xl bg-zinc-900 text-zinc-400 flex items-center justify-center font-bold text-sm">
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-900 bg-zinc-100/10 dark:bg-zinc-900/10 min-h-[360px] flex flex-col items-center justify-center p-8 text-center space-y-2">
+              <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 flex items-center justify-center font-bold text-sm">
                 @
               </div>
-              <h3 className="text-sm font-medium text-zinc-300">
+              <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 Ruang Draf Kosong
               </h3>
-              <p className="text-xs text-zinc-400 max-w-xs leading-relaxed">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-xs leading-relaxed">
                 Tulis ide kasar atau keresahan Anda di formulir sebelah kiri untuk menyusun 3 draf utas siap publikasi.
               </p>
             </div>
@@ -941,8 +955,8 @@ export const GeneratorPage: React.FC = () => {
 
       {/* Edit Toast Notice */}
       {editNoticeToast && (
-        <div className="fixed bottom-6 right-6 z-50 px-3.5 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs font-medium shadow-xl flex items-center gap-2">
-          <Check className="w-3.5 h-3.5 text-emerald-400" />
+        <div className="fixed bottom-6 right-6 z-50 px-3.5 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-medium shadow-xl flex items-center gap-2">
+          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
           <span>{editNoticeToast}</span>
         </div>
       )}
@@ -963,6 +977,7 @@ export const GeneratorPage: React.FC = () => {
           variant={publishModalVariant}
           isOpen={!!publishModalVariant}
           onClose={() => setPublishModalVariant(null)}
+          attachments={mediaAttachments}
           onRequestOpenVisualGenerator={() => {
             setPublishModalVariant(null);
             setVisualGeneratorVariant(currentVariant || null);

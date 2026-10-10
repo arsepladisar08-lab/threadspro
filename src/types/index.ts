@@ -256,4 +256,6 @@ export interface ScheduledThreadItem {
   errorMessage?: string;
   retryCount: number; // Maksimal 3x percobaan
   createdAt?: number;
+  /** "root": semua balasan ke Post #1; "chain" (default lama): berantai */
+  replyMode?: "root" | "chain";
 }

@@ -23,6 +23,8 @@ import {
   REPLY_SYSTEM_PROMPT,
   REVIEW_SYSTEM_PROMPT,
   CALENDAR_SYSTEM_PROMPT,
+  YOUTUBE_ANGLES_SYSTEM_PROMPT,
+  AFFILIATE_PRODUCT_SYSTEM_PROMPT,
 } from "../prompts";
 import {
   GEMINI_IDEA_DNA_SCHEMA,
@@ -31,15 +33,19 @@ import {
   GEMINI_REPLY_SCHEMA,
   GEMINI_REVIEW_SCHEMA,
   GEMINI_CALENDAR_SCHEMA,
+  GEMINI_YOUTUBE_ANGLES_SCHEMA,
+  GEMINI_AFFILIATE_PRODUCT_SCHEMA,
   IdeaDnaZodSchema,
   WriterZodSchema,
   CriticZodSchema,
   ReplyZodSchema,
   ReviewZodSchema,
   CalendarZodSchema,
+  YoutubeAnglesOutputZodSchema,
+  AffiliateProductZodSchema,
 } from "../schemas";
 
-export type AITask = "ideaDna" | "writer" | "critic" | "reply" | "review" | "calendar";
+export type AITask = "ideaDna" | "writer" | "critic" | "reply" | "review" | "calendar" | "youtubeAngles" | "affiliateProduct";
 
 // ─── Konfigurasi per task ────────────────────────────────────────────────────
 
@@ -50,6 +56,8 @@ export const TASK_PROMPTS: Record<AITask, string> = {
   reply: REPLY_SYSTEM_PROMPT,
   review: REVIEW_SYSTEM_PROMPT,
   calendar: CALENDAR_SYSTEM_PROMPT,
+  youtubeAngles: YOUTUBE_ANGLES_SYSTEM_PROMPT,
+  affiliateProduct: AFFILIATE_PRODUCT_SYSTEM_PROMPT,
 };
 
 export const TASK_GEMINI_SCHEMAS: Record<AITask, unknown> = {
@@ -59,6 +67,8 @@ export const TASK_GEMINI_SCHEMAS: Record<AITask, unknown> = {
   reply: GEMINI_REPLY_SCHEMA,
   review: GEMINI_REVIEW_SCHEMA,
   calendar: GEMINI_CALENDAR_SCHEMA,
+  youtubeAngles: GEMINI_YOUTUBE_ANGLES_SCHEMA,
+  affiliateProduct: GEMINI_AFFILIATE_PRODUCT_SCHEMA,
 };
 
 export const TASK_ZOD_SCHEMAS: Record<AITask, z.ZodTypeAny> = {
@@ -68,6 +78,8 @@ export const TASK_ZOD_SCHEMAS: Record<AITask, z.ZodTypeAny> = {
   reply: ReplyZodSchema,
   review: ReviewZodSchema,
   calendar: CalendarZodSchema,
+  youtubeAngles: YoutubeAnglesOutputZodSchema,
+  affiliateProduct: AffiliateProductZodSchema,
 };
 
 /** Task analitis butuh konsistensi; task kreatif butuh variasi. */
@@ -78,6 +90,8 @@ export const TASK_TEMPERATURE: Record<AITask, number> = {
   reply: 0.8,
   review: 0.4,
   calendar: 0.6,
+  youtubeAngles: 0.7,
+  affiliateProduct: 0.5,
 };
 
 const MAX_VALIDATION_RETRIES = 1;

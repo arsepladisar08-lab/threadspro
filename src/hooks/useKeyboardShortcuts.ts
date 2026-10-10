@@ -78,6 +78,10 @@ export function useKeyboardShortcuts({
             e.preventDefault();
             navigate("/metrik");
             return;
+          case "6":
+            e.preventDefault();
+            navigate("/link");
+            return;
         }
       }
 

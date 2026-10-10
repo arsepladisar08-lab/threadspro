@@ -219,6 +219,41 @@ export function auditVariant(variant: VariantOutput, rawIdea: string = ""): Chec
     });
   }
 
+  // 10. Cek Reply Konversi pada Sasaran Non-Konversi (Jangkauan & Kedekatan)
+  const isNonConversionGoal = variant.goal && variant.goal.toLowerCase() !== "konversi";
+  const CONVERSION_TERMS = [
+    /link\s+di\s+(bio|profil)/i,
+    /cek\s+(bio|profil)/i,
+    /klik\s+link/i,
+    /dm\s+(gue|aku|saya|kami|kita|admin|min)/i,
+    /kirim\s+dm/i,
+    /japri/i,
+    /beli\s+(sekarang|di)/i,
+    /order\s+(di|sekarang)/i,
+    /katalog/i,
+    /checkout/i,
+    /daftar\s+(webinar|kelas|kursus|workshop)/i,
+    /konsultasi\s+(gratis|berbayar|dm)/i,
+    /jasa\s+(kami|gue|aku)/i,
+    /produk\s+(kami|gue|aku)/i,
+    /etalase/i,
+    /promo\s+terbatas/i,
+  ];
+
+  if (isNonConversionGoal) {
+    const replyText = variant.reply_2?.text || "";
+    const hasConversionTerm = CONVERSION_TERMS.some((p) => p.test(replyText));
+    if (hasConversionTerm || variant.reply_2?.contains_link) {
+      score -= 25;
+      issues.push({
+        type: "unwanted_conversion_reply",
+        description: `Sasaran utas adalah '${variant.goal}', tetapi reply_2 terdeteksi memuat promosi/konversi atau link keluar.`,
+        severity: "critical",
+        fix: "Ganti reply_2 dengan konteks data tambahan, fakta pelengkap, atau pemantik diskusi tanpa ajakan jualan."
+      });
+    }
+  }
+
   const finalScore = Math.max(0, Math.min(100, score));
   return {
     score: finalScore,
@@ -232,6 +267,25 @@ export function auditVariant(variant: VariantOutput, rawIdea: string = ""): Chec
  */
 export function autoFixVariant(variant: VariantOutput): VariantOutput {
   const newVariant = JSON.parse(JSON.stringify(variant)) as VariantOutput;
+
+  const CONVERSION_TERMS = [
+    /link\s+di\s+(bio|profil)/i,
+    /cek\s+(bio|profil)/i,
+    /klik\s+link/i,
+    /dm\s+(gue|aku|saya|kami|kita|admin|min)/i,
+    /kirim\s+dm/i,
+    /japri/i,
+    /beli\s+(sekarang|di)/i,
+    /order\s+(di|sekarang)/i,
+    /katalog/i,
+    /checkout/i,
+    /daftar\s+(webinar|kelas|kursus|workshop)/i,
+    /konsultasi\s+(gratis|berbayar|dm)/i,
+    /jasa\s+(kami|gue|aku)/i,
+    /produk\s+(kami|gue|aku)/i,
+    /etalase/i,
+    /promo\s+terbatas/i,
+  ];
 
   // 1. Hapus hashtag (#) dari seluruh post
   newVariant.posts = newVariant.posts.map(post => {
@@ -274,6 +328,24 @@ export function autoFixVariant(variant: VariantOutput): VariantOutput {
   // 4. Pastikan Topic Tag bersih dari #
   if (newVariant.topic_tag) {
     newVariant.topic_tag = newVariant.topic_tag.replace(/#/g, "").trim();
+  }
+
+  // 5. Bersihkan reply_2 dari konversi / promosi jika sasaran bukan Konversi
+  const isNonConversion = newVariant.goal && newVariant.goal.toLowerCase() !== "konversi";
+  if (isNonConversion && newVariant.reply_2) {
+    const hasConversionTerm = CONVERSION_TERMS.some((p) => p.test(newVariant.reply_2.text || ""));
+    if (hasConversionTerm || newVariant.reply_2.contains_link) {
+      const isKedekatan = newVariant.goal.toLowerCase() === "kedekatan";
+      newVariant.reply_2.text = isKedekatan
+        ? "Jujur, nulis utas ini bikin gue refleksi lagi. Menurut kalian gimana? Cerita santai di bawah yuk, siapa tahu bisa saling menguatkan."
+        : "Dari poin-poin di atas, mana yang menurut kalian paling relate atau justru bikin punya pandangan beda? Drop pendapat kalian di bawah buat bahan diskusi.";
+      newVariant.reply_2.contains_link = false;
+    }
+
+    // Koreksi template lapak / softsell jika sasaran non-konversi
+    if (newVariant.template === "lapak" || newVariant.template === "softsell_cerita") {
+      newVariant.template = newVariant.goal.toLowerCase() === "kedekatan" ? "validasi" : "kontra_narasi";
+    }
   }
 
   return newVariant;

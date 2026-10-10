@@ -70,6 +70,8 @@ export default async function publishCronHandler(req: Request, res: Response) {
         const subsequentPosts = postsList.slice(1);
         const topicTag = (variant?.topic_tag || "").replace(/#/g, "").trim();
         const reply2Text = variant?.reply_2?.text;
+        // "root": Post #2 dst. dan Reply ke-2 membalas langsung Post #1; selain itu berantai (perilaku lama)
+        const replyMode = item.replyMode === "root" ? "root" : "chain";
 
         if (!mainPost.trim()) {
           results.push({
@@ -82,7 +84,7 @@ export default async function publishCronHandler(req: Request, res: Response) {
 
         // 1. Buat Container Post Utama (Post #1)
         const containerParams = new URLSearchParams({
-          media_type: "TEXT_POST",
+          media_type: "TEXT",
           text: mainPost,
           access_token: token,
         });
@@ -144,9 +146,9 @@ export default async function publishCronHandler(req: Request, res: Response) {
 
           await new Promise((r) => setTimeout(r, 1500));
           const subParams = new URLSearchParams({
-            media_type: "TEXT_POST",
+            media_type: "TEXT",
             text: subText.trim(),
-            reply_to_id: lastPostIdInChain,
+            reply_to_id: replyMode === "root" ? rootPostId : lastPostIdInChain,
             access_token: token,
           });
 
@@ -180,9 +182,9 @@ export default async function publishCronHandler(req: Request, res: Response) {
           try {
             await new Promise((r) => setTimeout(r, 1500));
             const r2Params = new URLSearchParams({
-              media_type: "TEXT_POST",
+              media_type: "TEXT",
               text: reply2Text.trim(),
-              reply_to_id: lastPostIdInChain,
+              reply_to_id: replyMode === "root" ? rootPostId : lastPostIdInChain,
               access_token: token,
             });
 

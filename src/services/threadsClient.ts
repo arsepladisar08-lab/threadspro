@@ -506,7 +506,7 @@ export const threadsClient = {
     onProgress?: (info: string) => void
   ): Promise<boolean> {
     const startTime = Date.now();
-    const pollInterval = 1500; // interval 1.5 detik
+    const pollInterval = maxWaitMs > 60000 ? 5000 : 1500; // video: polling lebih jarang
     let attempt = 1;
 
     while (Date.now() - startTime < maxWaitMs) {
@@ -550,7 +550,7 @@ export const threadsClient = {
     }
 
     throw new Error(
-      `Timeout menunggu pemrosesan media Meta Threads (30 detik). Container ID: ${containerId}. Silakan coba beberapa saat lagi.`
+      `Timeout menunggu pemrosesan media Meta Threads (${Math.round(maxWaitMs / 1000)} detik). Container ID: ${containerId}. Silakan coba beberapa saat lagi.`
     );
   },
 
@@ -566,6 +566,13 @@ export const threadsClient = {
     reply2Text?: string;
     imageUrls?: string[];
     isCarousel?: boolean;
+    /** Media campuran gambar/video (URL publik). Jika diisi, menggantikan imageUrls. */
+    media?: Array<{ url: string; type: "IMAGE" | "VIDEO" }>;
+    /**
+     * "root"  : Post #2 dst. dan Reply ke-2 membalas langsung Post #1
+     * "chain" : tiap post membalas post sebelumnya (perilaku lama, default)
+     */
+    replyMode?: "root" | "chain";
     onProgress?: (status: string) => void;
   }): Promise<{ success: boolean; postId: string; permalink: string; publishedCount: number }> {
     const token = await storage.getThreadsToken();
@@ -581,7 +588,8 @@ export const threadsClient = {
       throw new Error("Batas kuota posting harian tercapai (maks 25 post/hari).");
     }
 
-    const { text, posts, subsequentPosts, topicTag, reply2Text, imageUrls, isCarousel, onProgress } = params;
+    const { text, posts, subsequentPosts, topicTag, reply2Text, imageUrls, media, onProgress } = params;
+    const replyMode = params.replyMode === "root" ? "root" : "chain";
     
     // Kumpulkan seluruh daftar postingan (Post #1 s/d Post #N)
     let allPostTexts: string[] = [];
@@ -606,31 +614,43 @@ export const threadsClient = {
     const mainPostText = allPostTexts[0];
     const subsequentTexts = allPostTexts.slice(1);
     const cleanTopic = topicTag ? topicTag.replace(/#/g, "").trim() : "";
-    const hasImages = Array.isArray(imageUrls) && imageUrls.length > 0;
-    const isMultiImageCarousel = hasImages && (imageUrls.length > 1 || isCarousel === true);
+    // Normalisasi media: `media` (campuran gambar/video) diutamakan, imageUrls tetap didukung
+    const mediaItems: Array<{ url: string; type: "IMAGE" | "VIDEO" }> =
+      Array.isArray(media) && media.length > 0
+        ? media
+        : (imageUrls || []).map((url) => ({ url, type: "IMAGE" as const }));
+    const hasMedia = mediaItems.length > 0;
+    // Carousel butuh minimal 2 item; satu item diterbitkan sebagai post tunggal
+    const isMultiMediaCarousel = mediaItems.length > 1;
+    // Video diproses Meta lebih lama dari gambar
+    const readyTimeoutFor = (type: "IMAGE" | "VIDEO") => (type === "VIDEO" ? 300000 : 30000);
+
+    if (mediaItems.length > 20) {
+      throw new Error("Carousel Threads maksimal 20 item media.");
+    }
 
     let mainCreationId: string = "";
-    let finalMediaType: "TEXT_POST" | "IMAGE" | "CAROUSEL_ALBUM" = "TEXT_POST";
+    let finalMediaType: "TEXT_POST" | "IMAGE" | "VIDEO" | "CAROUSEL_ALBUM" = "TEXT_POST";
 
-    if (isMultiImageCarousel && imageUrls) {
+    if (isMultiMediaCarousel) {
       // ==========================================
       // KASUS 1: CAROUSEL ALBUM (2-10 SLIDE GAMBAR)
       // ==========================================
       finalMediaType = "CAROUSEL_ALBUM";
-      const totalSlides = imageUrls.length;
+      const totalSlides = mediaItems.length;
       const childContainerIds: string[] = [];
 
       onProgress?.(`Membuat media container item carousel (0/${totalSlides})...`);
 
       // 1.a Buat Container untuk Setiap Slide Item
       for (let i = 0; i < totalSlides; i++) {
-        const slideUrl = imageUrls[i];
+        const slide = mediaItems[i];
         onProgress?.(`Membuat slide item #${i + 1} dari ${totalSlides}...`);
 
         const itemBody = new URLSearchParams();
-        itemBody.append("media_type", "IMAGE");
+        itemBody.append("media_type", slide.type);
         itemBody.append("is_carousel_item", "true");
-        itemBody.append("image_url", slideUrl);
+        itemBody.append(slide.type === "VIDEO" ? "video_url" : "image_url", slide.url);
         itemBody.append("access_token", token);
 
         quotaState.dailyCallsUsed += 1;
@@ -655,7 +675,7 @@ export const threadsClient = {
       for (let i = 0; i < childContainerIds.length; i++) {
         const cId = childContainerIds[i];
         onProgress?.(`Memvalidasi status slide #${i + 1} di Meta Threads...`);
-        await this.waitForContainerReady(cId, token, 30000, onProgress);
+        await this.waitForContainerReady(cId, token, readyTimeoutFor(mediaItems[i].type), onProgress);
       }
 
       // 1.c Buat Container Induk CAROUSEL
@@ -690,16 +710,17 @@ export const threadsClient = {
       onProgress?.("Memverifikasi kesiapan album carousel Meta Threads...");
       await this.waitForContainerReady(mainCreationId, token, 30000, onProgress);
 
-    } else if (hasImages && imageUrls && imageUrls.length === 1) {
+    } else if (hasMedia) {
       // ==========================================
-      // KASUS 2: SINGLE IMAGE POST
+      // KASUS 2: SINGLE IMAGE / VIDEO POST
       // ==========================================
-      finalMediaType = "IMAGE";
-      onProgress?.("Membuat container gambar tunggal di Threads...");
+      const single = mediaItems[0];
+      finalMediaType = single.type === "VIDEO" ? "VIDEO" : "IMAGE";
+      onProgress?.(single.type === "VIDEO" ? "Membuat container video di Threads..." : "Membuat container gambar tunggal di Threads...");
 
       const imgBody = new URLSearchParams();
-      imgBody.append("media_type", "IMAGE");
-      imgBody.append("image_url", imageUrls[0]);
+      imgBody.append("media_type", single.type);
+      imgBody.append(single.type === "VIDEO" ? "video_url" : "image_url", single.url);
       imgBody.append("text", mainPostText);
       if (cleanTopic) {
         imgBody.append("topic_tag", cleanTopic);
@@ -724,8 +745,8 @@ export const threadsClient = {
       mainCreationId = imgData.id;
 
       // Tunggu status container gambar FINISHED
-      onProgress?.("Menunggu pemrosesan gambar di Meta Threads (FINISHED)...");
-      await this.waitForContainerReady(mainCreationId, token, 30000, onProgress);
+      onProgress?.(single.type === "VIDEO" ? "Menunggu pemrosesan video di Meta Threads (bisa beberapa menit)..." : "Menunggu pemrosesan gambar di Meta Threads (FINISHED)...");
+      await this.waitForContainerReady(mainCreationId, token, readyTimeoutFor(single.type), onProgress);
 
     } else {
       // ==========================================
@@ -786,6 +807,8 @@ export const threadsClient = {
     const rootPostId = publishData.id;
     let lastPostIdInChain = rootPostId;
     let publishedCount = 1;
+    // "root": semua balasan menempel langsung ke Post #1; "chain": ke post sebelumnya
+    const getReplyParentId = () => (replyMode === "root" ? rootPostId : lastPostIdInChain);
 
     // Step 3: Publikasikan Post #2 sampai Post #N secara BERANTAI UTUH
     const totalThreadCount = allPostTexts.length + (reply2Text?.trim() ? 1 : 0);
@@ -800,7 +823,7 @@ export const threadsClient = {
 
       const replyContainerBody = new URLSearchParams();
       replyContainerBody.append("media_type", "TEXT");
-      replyContainerBody.append("reply_to_id", lastPostIdInChain);
+      replyContainerBody.append("reply_to_id", getReplyParentId());
       replyContainerBody.append("text", currentText);
       replyContainerBody.append("access_token", token);
 
@@ -853,7 +876,7 @@ export const threadsClient = {
 
         const replyContainerBody = new URLSearchParams();
         replyContainerBody.append("media_type", "TEXT");
-        replyContainerBody.append("reply_to_id", lastPostIdInChain);
+        replyContainerBody.append("reply_to_id", getReplyParentId());
         replyContainerBody.append("text", reply2Text.trim());
         replyContainerBody.append("access_token", token);
 

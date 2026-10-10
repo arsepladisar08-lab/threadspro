@@ -266,6 +266,15 @@ export const UserGuideModal: React.FC<UserGuideModalProps> = ({
                       Alt + 5
                     </kbd>
                   </div>
+
+                  <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800/80 flex items-center justify-between">
+                    <span className="text-xs font-medium text-zinc-800 dark:text-zinc-200">
+                      6. Link Lab (YouTube)
+                    </span>
+                    <kbd className="px-2 py-0.5 rounded bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 font-mono text-xs font-semibold shadow-2xs">
+                      Alt + 6
+                    </kbd>
+                  </div>
                 </div>
               </div>
 

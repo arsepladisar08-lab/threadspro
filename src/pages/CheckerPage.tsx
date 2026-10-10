@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { CheckSquare, AlertTriangle, CheckCircle2, Wand2, ShieldAlert, Sparkles, Copy, Check } from "lucide-react";
 import { auditVariant, autoFixVariant } from "../lib/guard";
 import { VariantOutput, QualityIssue } from "../types";
 import { generateJSON } from "../services/ai";
 
 export const CheckerPage: React.FC = () => {
+  const location = useLocation();
   const [post1Text, setPost1Text] = useState("");
   const [post2Text, setPost2Text] = useState("");
   const [topicTag, setTopicTag] = useState("");
@@ -16,6 +18,16 @@ export const CheckerPage: React.FC = () => {
     passed: boolean;
   } | null>(null);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (location.state) {
+      const s = location.state as any;
+      if (typeof s.post1Text === "string") setPost1Text(s.post1Text);
+      if (typeof s.post2Text === "string") setPost2Text(s.post2Text);
+      if (typeof s.topicTag === "string") setTopicTag(s.topicTag);
+      if (typeof s.reply2Text === "string") setReply2Text(s.reply2Text);
+    }
+  }, [location.state]);
 
   const buildVariantObj = (): VariantOutput => {
     const posts = [

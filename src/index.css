@@ -2,16 +2,19 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    color-scheme: light dark;
-  }
+/*
+ * Tailwind v4 hanya menyediakan zinc 50-950. Kelas zinc-650/750/850 yang
+ * dipakai di komponen tidak akan dihasilkan tanpa definisi berikut
+ * (tanpa ini, varian dark:border-zinc-850 diabaikan diam-diam).
+ */
+@theme {
+  --color-zinc-650: #494951;
+  --color-zinc-750: #333338;
+  --color-zinc-850: #202023;
+}
 
+@layer base {
   html.dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
     color-scheme: dark;
   }
 
@@ -29,6 +32,26 @@
   html.dark body {
     background-color: #09090b;
     color: #f4f4f5;
+  }
+}
+
+/* Fokus keyboard yang jelas untuk semua elemen interaktif */
+@layer base {
+  :focus-visible {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+  }
+}
+
+/* Hormati preferensi pengguna yang mengurangi animasi */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
