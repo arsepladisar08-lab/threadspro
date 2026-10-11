@@ -431,13 +431,16 @@ async function generateDirectJSON<T>(task: AITask, input: any, _retryCount: numb
   const systemInstruction = TASK_PROMPTS[task];
   const responseSchema = TASK_GEMINI_SCHEMAS[task] as any;
   const zodSchema = TASK_ZOD_SCHEMAS[task];
-  const baseContents = typeof input === "string" ? input : JSON.stringify(input, null, 2);
+
+  const hasImage = Boolean(input?.image?.data && input?.image?.mimeType);
+  const textPayload = hasImage ? (({ image, ...rest }) => rest)(input) : input;
+  const baseContents = typeof textPayload === "string" ? textPayload : JSON.stringify(textPayload, null, 2);
 
   let lastError: AIServiceError | null = null;
   let attempt = 0;
 
   for (const modelName of MODEL_CHAIN) {
-    let contents = baseContents;
+    let currentText = baseContents;
 
     // Per model: 1 percobaan awal + MAX_VALIDATION_RETRIES perbaikan jika output gagal validasi.
     for (let v = 0; v <= MAX_VALIDATION_RETRIES; v++) {
@@ -445,6 +448,20 @@ async function generateDirectJSON<T>(task: AITask, input: any, _retryCount: numb
       attempt++;
 
       try {
+        const contents: any = hasImage
+          ? {
+              parts: [
+                { text: currentText },
+                {
+                  inlineData: {
+                    mimeType: input.image.mimeType,
+                    data: input.image.data,
+                  },
+                },
+              ],
+            }
+          : currentText;
+
         const response = await withTimeout(
           ai.models.generateContent({
             model: modelName,
@@ -471,7 +488,7 @@ async function generateDirectJSON<T>(task: AITask, input: any, _retryCount: numb
         console.warn(`Zod parse error pada ${modelName}:`, validated.error.issues);
         lastError = new AIServiceError(`Output tidak lolos validasi skema: ${issues}`, "validation", true);
         // Beri umpan balik spesifik agar percobaan berikutnya memperbaiki field yang salah.
-        contents = `${baseContents}\n\n---\nOUTPUT SEBELUMNYA TIDAK VALID. Perbaiki masalah berikut dan kembalikan ulang JSON lengkap sesuai responseSchema:\n${issues}`;
+        currentText = `${baseContents}\n\n---\nOUTPUT SEBELUMNYA TIDAK VALID. Perbaiki masalah berikut dan kembalikan ulang JSON lengkap sesuai responseSchema:\n${issues}`;
       } catch (err) {
         lastError = classifyError(err);
         console.warn(`Model ${modelName} kendala (${lastError.kind}): ${lastError.message.slice(0, 120)}`);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Link2,
@@ -27,6 +27,9 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronUp,
+  Image as ImageIcon,
+  Upload,
+  Camera,
 } from "lucide-react";
 import { UserProfile, GoalType, GenerationOutput, VariantOutput, CalendarDayItem, NicheType } from "../types";
 import { storage } from "../lib/storage";
@@ -36,6 +39,8 @@ import { generateJSON } from "../services/ai";
 import { YoutubeAnglesOutput, AffiliateProductOutput, YoutubeAngleItem } from "../types";
 import { fetchYouTubeMetadata, isValidYouTubeUrl, YouTubeMetadata } from "../services/youtubeService";
 import { PublishModal } from "../components/PublishModal";
+import { MediaAttachments } from "../components/MediaAttachments";
+import { AttachedMedia, revokeAttachment } from "../services/mediaUpload";
 
 /**
  * Validasi tautan Affiliate (Shopee, Shope.ee, TikTok, vt.tiktok.com)
@@ -96,6 +101,19 @@ export const LinkLabPage: React.FC = () => {
   const [targetAudience, setTargetAudience] = useState("");
   const [isAnalyzingProduct, setIsAnalyzingProduct] = useState(false);
   const [affiliateAnalysisNotice, setAffiliateAnalysisNotice] = useState<string | null>(null);
+
+  // Lampiran Gambar Produk untuk mempermudah AI mengisi otomatis Form
+  const [productImageFile, setProductImageFile] = useState<File | null>(null);
+  const [productImagePreview, setProductImagePreview] = useState<string | null>(null);
+  const productImageInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    return () => {
+      if (productImagePreview) {
+        URL.revokeObjectURL(productImagePreview);
+      }
+    };
+  }, [productImagePreview]);
   const [isGeneratingAffiliateThreads, setIsGeneratingAffiliateThreads] = useState(false);
   const [affiliateGenStep, setAffiliateGenStep] = useState<string | null>(null);
   const [affiliateGenError, setAffiliateGenError] = useState<string | null>(null);
@@ -443,29 +461,152 @@ ATURAN STRUKTUR & KARAKTER (MUTLAK):
     }
   };
 
+  // ==================== HANDLER MEDIA UTAS LINK LAB ====================
+  const handleUpdateVideoPostMedia = (pIdx: number, items: AttachedMedia[]) => {
+    if (!videoResult || !videoResult.variants || !videoResult.variants[activeVideoVariantIdx]) return;
+    const updatedVariants = [...videoResult.variants];
+    const current = { ...updatedVariants[activeVideoVariantIdx] };
+    const updatedPosts = [...current.posts];
+    updatedPosts[pIdx] = {
+      ...updatedPosts[pIdx],
+      mediaAttachments: items,
+    };
+    current.posts = updatedPosts;
+    updatedVariants[activeVideoVariantIdx] = current;
+    const updatedResult = { ...videoResult, variants: updatedVariants };
+    setVideoResult(updatedResult);
+    storage.saveGeneration(updatedResult);
+  };
+
+  const handleUpdateVideoReply2Media = (items: AttachedMedia[]) => {
+    if (!videoResult || !videoResult.variants || !videoResult.variants[activeVideoVariantIdx]) return;
+    const updatedVariants = [...videoResult.variants];
+    const current = { ...updatedVariants[activeVideoVariantIdx] };
+    if (!current.reply_2) return;
+    current.reply_2 = {
+      ...current.reply_2,
+      mediaAttachments: items,
+    };
+    updatedVariants[activeVideoVariantIdx] = current;
+    const updatedResult = { ...videoResult, variants: updatedVariants };
+    setVideoResult(updatedResult);
+    storage.saveGeneration(updatedResult);
+  };
+
+  const handleUpdateAffiliatePostMedia = (pIdx: number, items: AttachedMedia[]) => {
+    if (!affiliateResult || !affiliateResult.variants || !affiliateResult.variants[activeAffiliateVariantIdx]) return;
+    const updatedVariants = [...affiliateResult.variants];
+    const current = { ...updatedVariants[activeAffiliateVariantIdx] };
+    const updatedPosts = [...current.posts];
+    updatedPosts[pIdx] = {
+      ...updatedPosts[pIdx],
+      mediaAttachments: items,
+    };
+    current.posts = updatedPosts;
+    updatedVariants[activeAffiliateVariantIdx] = current;
+    const updatedResult = { ...affiliateResult, variants: updatedVariants };
+    setAffiliateResult(updatedResult);
+    storage.saveGeneration(updatedResult);
+  };
+
+  const handleUpdateAffiliateReply2Media = (items: AttachedMedia[]) => {
+    if (!affiliateResult || !affiliateResult.variants || !affiliateResult.variants[activeAffiliateVariantIdx]) return;
+    const updatedVariants = [...affiliateResult.variants];
+    const current = { ...updatedVariants[activeAffiliateVariantIdx] };
+    if (!current.reply_2) return;
+    current.reply_2 = {
+      ...current.reply_2,
+      mediaAttachments: items,
+    };
+    updatedVariants[activeAffiliateVariantIdx] = current;
+    const updatedResult = { ...affiliateResult, variants: updatedVariants };
+    setAffiliateResult(updatedResult);
+    storage.saveGeneration(updatedResult);
+  };
+
+  // Handler pemilihan foto produk untuk form otomatis
+  const handleProductImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setAffiliateUrlError("File yang dilampirkan harus berupa gambar (JPG, PNG, WebP).");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setAffiliateUrlError("Ukuran gambar maksimal 8 MB.");
+      return;
+    }
+
+    if (productImagePreview) {
+      URL.revokeObjectURL(productImagePreview);
+    }
+    setProductImageFile(file);
+    setProductImagePreview(URL.createObjectURL(file));
+    setAffiliateUrlError(null);
+    showToast("Foto produk berhasil dilampirkan. Klik 'Isi Form Otomatis via AI' untuk memindai.");
+  };
+
+  const handleRemoveProductImage = () => {
+    if (productImagePreview) {
+      URL.revokeObjectURL(productImagePreview);
+    }
+    setProductImageFile(null);
+    setProductImagePreview(null);
+  };
+
   // ==================== HANDLER MODE AFFILIATE ====================
 
-  // Fitur Analisis Otomatis Form berdasarkan Link yang Diberikan via AI
+  // Helper konversi file gambar ke Base64 inlineData untuk AI Multimodal
+  const fileToBase64 = (file: File): Promise<{ data: string; mimeType: string }> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const commaIndex = result.indexOf(",");
+        const base64Data = commaIndex !== -1 ? result.slice(commaIndex + 1) : result;
+        resolve({
+          data: base64Data,
+          mimeType: file.type || "image/jpeg",
+        });
+      };
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Fitur Analisis Otomatis Form berdasarkan Gambar Produk dan/atau Link Afiliasi via AI Multimodal
   const handleAutoAnalyzeAffiliate = async () => {
     setAffiliateUrlError(null);
     setAffiliateAnalysisNotice(null);
 
     const trimmed = affiliateInputUrl.trim();
-    if (!trimmed) {
-      setAffiliateUrlError("Silakan masukkan tautan affiliate Shopee atau TikTok terlebih dahulu.");
+
+    // Wajib ada minimal salah satu: gambar produk ATAU tautan affiliate
+    if (!trimmed && !productImageFile) {
+      setAffiliateUrlError("Silakan lampirkan gambar produk atau masukkan tautan affiliate terlebih dahulu.");
       return;
     }
 
-    if (!isAffiliateUrl(trimmed)) {
+    if (trimmed && !isAffiliateUrl(trimmed)) {
       setAffiliateUrlError("Jenis link belum didukung. Masukkan link Shopee (shopee.co.id, shope.ee) atau TikTok (tiktok.com, vt.tiktok.com).");
       return;
     }
 
     setIsAnalyzingProduct(true);
     try {
+      let imagePayload: { data: string; mimeType: string } | undefined = undefined;
+      if (productImageFile) {
+        imagePayload = await fileToBase64(productImageFile);
+      }
+
       const analyzed = await generateJSON<AffiliateProductOutput>("affiliateProduct", {
-        affiliateUrl: trimmed,
+        affiliateUrl: trimmed || undefined,
         userProfile: profile,
+        productImageName: productImageFile?.name,
+        hasProductImage: Boolean(imagePayload),
+        image: imagePayload,
       });
 
       if (analyzed) {
@@ -476,13 +617,20 @@ ATURAN STRUKTUR & KARAKTER (MUTLAK):
         }
         if (analyzed.target_audience) setTargetAudience(analyzed.target_audience);
 
-        setAffiliateAnalysisNotice("Form berhasil diisi otomatis oleh AI berdasarkan analisis tautan!");
-        setTimeout(() => setAffiliateAnalysisNotice(null), 3500);
+        const noticeText = imagePayload && trimmed
+          ? "Form berhasil diisi otomatis oleh AI berdasarkan gambar produk & analisis tautan!"
+          : imagePayload
+          ? "Form berhasil diisi otomatis oleh AI dari hasil pindaian foto produk!"
+          : "Form berhasil diisi otomatis oleh AI berdasarkan analisis tautan!";
+
+        setAffiliateAnalysisNotice(noticeText);
+        showToast(noticeText);
+        setTimeout(() => setAffiliateAnalysisNotice(null), 4000);
       }
     } catch (err: any) {
-      console.warn("Analisis otomatis link affiliate gagal, fallback panduan:", err);
-      setAffiliateAnalysisNotice("Silakan lengkapi form produk secara manual di bawah.");
-      setTimeout(() => setAffiliateAnalysisNotice(null), 3000);
+      console.warn("Analisis otomatis link/gambar affiliate gagal, fallback panduan:", err);
+      setAffiliateAnalysisNotice("Gagal menganalisis otomatis. Silakan lengkapi form produk secara manual di bawah.");
+      setTimeout(() => setAffiliateAnalysisNotice(null), 3500);
     } finally {
       setIsAnalyzingProduct(false);
     }
@@ -1360,6 +1508,15 @@ ${trimmedUrl}
                       <p className="text-xs sm:text-sm text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap leading-relaxed">
                         {post.text}
                       </p>
+
+                      {/* Lampiran Media (Gambar/Video) per Post */}
+                      <MediaAttachments
+                        items={post.mediaAttachments || []}
+                        onChange={(next) => handleUpdateVideoPostMedia(pIdx, next)}
+                        compact={true}
+                        label={pIdx === 0 ? "Lampiran Media Post Utama (#1)" : "Lampiran Media Reply ke-" + (pIdx + 1)}
+                        description={pIdx === 0 ? "Foto atau video untuk Post Utama (#1)" : "Foto atau video untuk Reply ke-" + (pIdx + 1)}
+                      />
                     </div>
                   ))}
 
@@ -1388,6 +1545,15 @@ ${trimmedUrl}
                       <p className="text-xs text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap leading-relaxed">
                         {currentVideoVariant.reply_2.text}
                       </p>
+
+                      {/* Lampiran Media (Gambar/Video) Reply ke-4 (Kredit & Diskusi) */}
+                      <MediaAttachments
+                        items={currentVideoVariant.reply_2.mediaAttachments || []}
+                        onChange={handleUpdateVideoReply2Media}
+                        compact={true}
+                        label={"Lampiran Media Reply ke-" + (currentVideoVariant.posts.length + 1)}
+                        description={"Foto atau video untuk Reply ke-" + (currentVideoVariant.posts.length + 1)}
+                      />
                     </div>
                   )}
                 </div>
@@ -1478,6 +1644,109 @@ ${trimmedUrl}
             </div>
 
             <form onSubmit={handleGenerateAffiliateThreads} className="space-y-4">
+              {/* Bagian Lampirkan Gambar Produk untuk Memudahkan AI Mengisi Otomatis Form */}
+              <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/90 dark:border-zinc-850 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/80">
+                      <ImageIcon className="w-4 h-4" />
+                    </span>
+                    <div>
+                      <h3 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                        <span>Lampiran Gambar Produk</span>
+                        <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                          Rekomendasi AI Otomatis
+                        </span>
+                      </h3>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                        Lampirkan tangkapan layar (screenshot) etalase Shopee/TikTok, kemasan, atau foto produk agar AI memindai nama, harga, dan keunggulan secara presisi.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAutoAnalyzeAffiliate}
+                    disabled={isAnalyzingProduct || (!affiliateInputUrl.trim() && !productImageFile)}
+                    className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50 shadow-xs"
+                  >
+                    {isAnalyzingProduct ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>AI Sedang Memindai...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="w-3.5 h-3.5" />
+                        <span>Isi Form Otomatis via AI</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Upload Area / Preview */}
+                <input
+                  ref={productImageInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleProductImageSelect}
+                  className="hidden"
+                />
+
+                {!productImagePreview ? (
+                  <div
+                    onClick={() => productImageInputRef.current?.click()}
+                    className="p-4 rounded-xl border-2 border-dashed border-zinc-200 dark:border-zinc-800 hover:border-emerald-400 dark:hover:border-emerald-600 bg-white dark:bg-zinc-900/50 flex flex-col items-center justify-center gap-2 cursor-pointer transition text-center group"
+                  >
+                    <div className="p-2 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-950/40 transition">
+                      <Camera className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-zinc-800 dark:text-zinc-200">
+                        Klik untuk unggah screenshot etalase toko atau foto produk
+                      </p>
+                      <p className="text-[11px] text-zinc-400 mt-0.5">
+                        Format JPG, PNG, atau WebP (Maks. 8 MB)
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                    <img
+                      src={productImagePreview}
+                      alt="Preview Produk"
+                      className="w-14 h-14 rounded-lg object-cover border border-zinc-200 dark:border-zinc-800 shrink-0 shadow-2xs"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                        {productImageFile?.name}
+                      </p>
+                      <p className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>Gambar siap dianalisis untuk mengisi otomatis form produk</span>
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => productImageInputRef.current?.click()}
+                        className="px-2.5 py-1 rounded-lg text-xs font-medium border border-zinc-200 dark:border-zinc-750 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition cursor-pointer"
+                      >
+                        Ganti
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRemoveProductImage}
+                        className="p-1 text-zinc-400 hover:text-rose-500 transition cursor-pointer"
+                        title="Hapus foto produk"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Field 1: Tautan Link Affiliate */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
@@ -1757,6 +2026,15 @@ ${trimmedUrl}
                       <p className="text-xs sm:text-sm text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap leading-relaxed">
                         {post.text}
                       </p>
+
+                      {/* Lampiran Media (Gambar/Video) per Post Utas Afiliasi */}
+                      <MediaAttachments
+                        items={post.mediaAttachments || []}
+                        onChange={(next) => handleUpdateAffiliatePostMedia(pIdx, next)}
+                        compact={true}
+                        label={pIdx === 0 ? "Lampiran Media Post Utama (#1)" : "Lampiran Media Reply ke-" + (pIdx + 1)}
+                        description={pIdx === 0 ? "Foto produk atau video demonstrasi untuk Post Utama (#1)" : "Foto atau video untuk Reply ke-" + (pIdx + 1)}
+                      />
                     </div>
                   ))}
 
@@ -1786,6 +2064,15 @@ ${trimmedUrl}
                       <p className="text-xs text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap leading-relaxed">
                         {currentAffiliateVariant.reply_2.text}
                       </p>
+
+                      {/* Lampiran Media (Gambar/Video) Reply ke-4 (CTA Toko) */}
+                      <MediaAttachments
+                        items={currentAffiliateVariant.reply_2.mediaAttachments || []}
+                        onChange={handleUpdateAffiliateReply2Media}
+                        compact={true}
+                        label={"Lampiran Media Reply ke-" + (currentAffiliateVariant.posts.length + 1)}
+                        description={"Foto atau video untuk Reply ke-" + (currentAffiliateVariant.posts.length + 1)}
+                      />
                     </div>
                   )}
                 </div>

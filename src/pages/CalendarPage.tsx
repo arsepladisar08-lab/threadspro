@@ -20,6 +20,7 @@ import {
   AlertCircle,
   CheckCircle2,
   X,
+  Paperclip,
 } from "lucide-react";
 
 export const CalendarPage: React.FC = () => {
@@ -750,6 +751,12 @@ export const CalendarPage: React.FC = () => {
                     <span className="font-mono text-zinc-500">{p.text.length} / 500 karakter</span>
                   </div>
                   <p className="text-zinc-200 whitespace-pre-wrap leading-relaxed">{p.text}</p>
+                  {p.mediaAttachments && p.mediaAttachments.length > 0 && (
+                    <div className="pt-2 border-t border-zinc-800/80 flex items-center gap-1.5 text-[11px] text-emerald-400">
+                      <Paperclip className="w-3 h-3" />
+                      <span>{p.mediaAttachments.length} file media (gambar/video) terlampir</span>
+                    </div>
+                  )}
                 </div>
               ))}
 
@@ -767,6 +774,12 @@ export const CalendarPage: React.FC = () => {
                   <p className="text-zinc-200 whitespace-pre-wrap leading-relaxed">
                     {previewVariantDay.variant.reply_2.text}
                   </p>
+                  {previewVariantDay.variant.reply_2.mediaAttachments && previewVariantDay.variant.reply_2.mediaAttachments.length > 0 && (
+                    <div className="pt-2 border-t border-indigo-900/60 flex items-center gap-1.5 text-[11px] text-emerald-400">
+                      <Paperclip className="w-3 h-3" />
+                      <span>{previewVariantDay.variant.reply_2.mediaAttachments.length} file media (gambar/video) terlampir</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

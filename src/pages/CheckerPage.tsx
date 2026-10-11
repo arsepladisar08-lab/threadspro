@@ -20,10 +20,13 @@ import { VariantOutput, QualityIssue, CalendarDayItem, GoalType } from "../types
 import { generateJSON } from "../services/ai";
 import { storage } from "../lib/storage";
 import { PublishModal } from "../components/PublishModal";
+import { MediaAttachments } from "../components/MediaAttachments";
+import { AttachedMedia } from "../services/mediaUpload";
 
 export interface PostDraftItem {
   order: number;
   text: string;
+  mediaAttachments?: AttachedMedia[];
 }
 
 export const CheckerPage: React.FC = () => {
@@ -37,6 +40,7 @@ export const CheckerPage: React.FC = () => {
   ]);
   const [topicTag, setTopicTag] = useState("");
   const [reply2Text, setReply2Text] = useState("");
+  const [reply2Media, setReply2Media] = useState<AttachedMedia[]>([]);
   const [originalVariant, setOriginalVariant] = useState<VariantOutput | null>(null);
 
   const [isAuditing, setIsAuditing] = useState(false);
@@ -67,12 +71,16 @@ export const CheckerPage: React.FC = () => {
             v.posts.map((p, idx) => ({
               order: idx + 1,
               text: p.text || "",
+              mediaAttachments: p.mediaAttachments || [],
             }))
           );
         }
 
         if (v.reply_2?.text) {
           setReply2Text(v.reply_2.text);
+        }
+        if (v.reply_2?.mediaAttachments) {
+          setReply2Media(v.reply_2.mediaAttachments || []);
         }
         if (v.topic_tag) {
           setTopicTag(v.topic_tag);
@@ -104,6 +112,18 @@ export const CheckerPage: React.FC = () => {
     });
   };
 
+  const handleUpdatePostMedia = (idx: number, items: AttachedMedia[]) => {
+    setPosts((prev) => {
+      const updated = [...prev];
+      updated[idx] = { ...updated[idx], mediaAttachments: items };
+      return updated;
+    });
+  };
+
+  const handleUpdateReply2Media = (items: AttachedMedia[]) => {
+    setReply2Media(items);
+  };
+
   const handleAddPost = () => {
     if (posts.length >= 8) return;
     setPosts((prev) => [
@@ -127,7 +147,7 @@ export const CheckerPage: React.FC = () => {
       text: p.text,
       char_count: p.text.length,
       media: originalVariant?.posts?.[idx]?.media,
-      mediaAttachments: originalVariant?.posts?.[idx]?.mediaAttachments,
+      mediaAttachments: p.mediaAttachments ?? originalVariant?.posts?.[idx]?.mediaAttachments ?? [],
     }));
 
     return {
@@ -146,7 +166,7 @@ export const CheckerPage: React.FC = () => {
         text: reply2Text,
         contains_link: reply2Text.includes("http") || (originalVariant?.reply_2?.contains_link ?? false),
         media: originalVariant?.reply_2?.media,
-        mediaAttachments: originalVariant?.reply_2?.mediaAttachments,
+        mediaAttachments: reply2Media.length > 0 ? reply2Media : (originalVariant?.reply_2?.mediaAttachments || []),
       },
       topic_tag: topicTag,
       closing_question: originalVariant?.closing_question || (posts[0]?.text.includes("?") ? "Ada tanda tanya" : ""),
@@ -199,6 +219,7 @@ export const CheckerPage: React.FC = () => {
       fixed.posts.map((p, idx) => ({
         order: idx + 1,
         text: p.text || "",
+        mediaAttachments: posts[idx]?.mediaAttachments || p.mediaAttachments || [],
       }))
     );
     setTopicTag(fixed.topic_tag);
@@ -354,6 +375,15 @@ export const CheckerPage: React.FC = () => {
                       }
                       className="w-full p-3 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-hidden focus:border-indigo-500 leading-relaxed transition"
                     />
+
+                    {/* Lampiran Media (Gambar / Video) per Post */}
+                    <MediaAttachments
+                      items={post.mediaAttachments || []}
+                      onChange={(next) => handleUpdatePostMedia(pIdx, next)}
+                      compact={true}
+                      label={isRoot ? "Lampiran Media Post Utama (#1)" : "Lampiran Media Reply ke-" + (pIdx + 1)}
+                      description={isRoot ? "Foto atau video untuk Post Utama (#1)" : "Foto atau video untuk Reply ke-" + (pIdx + 1)}
+                    />
                   </div>
                 );
               })}
@@ -392,6 +422,15 @@ export const CheckerPage: React.FC = () => {
               <span className="text-[11px] text-zinc-500 dark:text-zinc-400 block pt-0.5">
                 Menaruh link di balasan penutup (Reply #4) menjaga post utama dari penalti algoritma Threads.
               </span>
+
+              {/* Lampiran Media (Gambar / Video) Reply ke-4 (CTA / Diskusi) */}
+              <MediaAttachments
+                items={reply2Media}
+                onChange={handleUpdateReply2Media}
+                compact={true}
+                label={"Lampiran Media Reply ke-" + (posts.length + 1)}
+                description={"Foto atau video untuk Reply ke-" + (posts.length + 1)}
+              />
             </div>
 
             {/* Topic Tag */}

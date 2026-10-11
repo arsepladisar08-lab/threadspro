@@ -70,7 +70,24 @@ export default async function handler(req: any, res: any) {
       },
     });
 
-    const contents = typeof input === "string" ? input : JSON.stringify(input);
+    const hasImage = Boolean(input?.image?.data && input?.image?.mimeType);
+    let contents: any;
+    if (hasImage) {
+      const { image, ...restInput } = input;
+      contents = {
+        parts: [
+          { text: typeof restInput === "string" ? restInput : JSON.stringify(restInput) },
+          {
+            inlineData: {
+              mimeType: image.mimeType,
+              data: image.data,
+            },
+          },
+        ],
+      };
+    } else {
+      contents = typeof input === "string" ? input : JSON.stringify(input);
+    }
 
     let lastError: any = null;
     let validatedData: any = null;
