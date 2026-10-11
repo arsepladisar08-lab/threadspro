@@ -341,12 +341,24 @@ export const YoutubeAnglesOutputZodSchema = z.preprocess(
     creator_name: String(v?.creator_name || "Kreator YouTube"),
     video_summary: String(v?.video_summary || ""),
     angles: Array.isArray(v?.angles) ? v.angles : [],
+    thumbnail_url: v?.thumbnail_url ? String(v.thumbnail_url) : undefined,
+    video_id: v?.video_id ? String(v.video_id) : undefined,
+    duration_minutes: typeof v?.duration_minutes === "number" ? v.duration_minutes : undefined,
+    chapters: Array.isArray(v?.chapters) ? v.chapters.map(String) : undefined,
+    ai_summary: v?.ai_summary ? String(v.ai_summary) : undefined,
+    subscriber_count: v?.subscriber_count ? String(v.subscriber_count) : undefined,
   }),
   z.object({
     video_title: z.string().default("Video YouTube"),
     creator_name: z.string().default("Kreator YouTube"),
     video_summary: z.string().default(""),
     angles: z.array(YoutubeAngleItemZodSchema).min(1).default([]),
+    thumbnail_url: z.string().optional(),
+    video_id: z.string().optional(),
+    duration_minutes: z.number().optional(),
+    chapters: z.array(z.string()).optional(),
+    ai_summary: z.string().optional(),
+    subscriber_count: z.string().optional(),
   })
 );
 

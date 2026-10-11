@@ -172,6 +172,7 @@ export interface CalendarDayItem {
   timeWIB: string;
   replyActionGoal: string; // e.g. "Balas 10-15 akun sejenis"
   status?: "planned" | "drafted" | "posted";
+  variant?: VariantOutput;
 }
 
 export interface CommentReplyVariant {
@@ -278,6 +279,12 @@ export interface YoutubeAnglesOutput {
   creator_name: string;
   video_summary: string;
   angles: YoutubeAngleItem[];
+  thumbnail_url?: string;
+  video_id?: string;
+  duration_minutes?: number;
+  chapters?: string[];
+  ai_summary?: string;
+  subscriber_count?: string;
 }
 
 export interface AffiliateProductOutput {

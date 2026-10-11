@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { CalendarDayItem, GoalType, UserProfile, ScheduledThreadItem, TimeSlotType, VariantOutput } from "../types";
 import { storage } from "../lib/storage";
 import { generateJSON } from "../services/ai";
@@ -22,6 +23,7 @@ import {
 } from "lucide-react";
 
 export const CalendarPage: React.FC = () => {
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [activeTab, setActiveTab] = useState<"calendar" | "queue">("calendar");
   const [durationDays, setDurationDays] = useState<7 | 14>(7);
@@ -36,6 +38,7 @@ export const CalendarPage: React.FC = () => {
 
   // Quick schedule modal state
   const [schedulingDay, setSchedulingDay] = useState<CalendarDayItem | null>(null);
+  const [previewVariantDay, setPreviewVariantDay] = useState<CalendarDayItem | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlotType>("malam");
   const [customDraftText, setCustomDraftText] = useState("");
   const [daysOffset, setDaysOffset] = useState<number>(0);
@@ -249,39 +252,49 @@ export const CalendarPage: React.FC = () => {
 
     const targetIso = calculateNextPrimeTime(selectedSlot, daysOffset);
 
-    const variant: VariantOutput = {
-      template: "scheduled_calendar_day",
-      goal: schedulingDay.goal,
-      fusion_trace: {
-        card_id: schedulingDay.cardId || "K01",
-        hook_id: "H1",
-        pola_dipinjam: schedulingDay.pillar,
-        perubahan_dari_ide_kasar: schedulingDay.ideaPrompt,
-      },
-      hooks: [schedulingDay.hookPattern],
-      posts: [
-        {
-          order: 1,
-          text: customDraftText.trim() || schedulingDay.ideaPrompt,
-          char_count: (customDraftText.trim() || schedulingDay.ideaPrompt).length,
-        },
-      ],
-      reply_2: {
-        text: `Target interaksi: ${schedulingDay.replyActionGoal}`,
-        contains_link: false,
-      },
-      topic_tag: schedulingDay.topicTag,
-      closing_question: "Bagaimana tanggapan kalian?",
-      best_time_wib: schedulingDay.timeWIB,
-      first_30_min_plan: [schedulingDay.replyActionGoal],
-      algorithm_signal: "Engagement Organik",
-      signal_confidence: "R",
-      placeholders_to_fill: [],
-    };
+    // Jika item kalender menyimpan draf lengkap (misal dari Link Lab / Generator), pertahankan seluruh postingan (Post 1 s/d Reply 4)
+    const variantToSchedule: VariantOutput = schedulingDay.variant
+      ? {
+          ...JSON.parse(JSON.stringify(schedulingDay.variant)),
+          posts: schedulingDay.variant.posts.map((p, idx) =>
+            idx === 0 && customDraftText.trim() && customDraftText.trim() !== schedulingDay.ideaPrompt
+              ? { ...p, text: customDraftText.trim(), char_count: customDraftText.trim().length }
+              : p
+          ),
+        }
+      : {
+          template: "scheduled_calendar_day",
+          goal: schedulingDay.goal,
+          fusion_trace: {
+            card_id: schedulingDay.cardId || "K01",
+            hook_id: "H1",
+            pola_dipinjam: schedulingDay.pillar,
+            perubahan_dari_ide_kasar: schedulingDay.ideaPrompt,
+          },
+          hooks: [schedulingDay.hookPattern],
+          posts: [
+            {
+              order: 1,
+              text: customDraftText.trim() || schedulingDay.ideaPrompt,
+              char_count: (customDraftText.trim() || schedulingDay.ideaPrompt).length,
+            },
+          ],
+          reply_2: {
+            text: `Target interaksi: ${schedulingDay.replyActionGoal}`,
+            contains_link: false,
+          },
+          topic_tag: schedulingDay.topicTag,
+          closing_question: "Bagaimana tanggapan kalian?",
+          best_time_wib: schedulingDay.timeWIB,
+          first_30_min_plan: [schedulingDay.replyActionGoal],
+          algorithm_signal: "Engagement Organik",
+          signal_confidence: "R",
+          placeholders_to_fill: [],
+        };
 
     const item: ScheduledThreadItem = {
       id: `sched_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      variant,
+      variant: variantToSchedule,
       scheduledTimeISO: targetIso,
       timeSlot: selectedSlot,
       status: "queued",
@@ -479,9 +492,16 @@ export const CalendarPage: React.FC = () => {
                       <span className="font-semibold text-zinc-100">{day.dayName}</span>
                     </div>
 
-                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300">
-                      {day.goal}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {day.variant && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-950/60 text-indigo-300 border border-indigo-900/40">
+                          Draf Lengkap ({day.variant.posts.length + (day.variant.reply_2?.text ? 1 : 0)} Post)
+                        </span>
+                      )}
+                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300">
+                        {day.goal}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Pillar & Prompt */}
@@ -514,12 +534,23 @@ export const CalendarPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Card Action: Schedule */}
-                <div className="pt-3 border-t border-zinc-900">
+                {/* Card Action: Schedule & View Full Thread Draft if exists */}
+                <div className="pt-3 border-t border-zinc-900 flex items-center gap-2">
+                  {day.variant && (
+                    <button
+                      type="button"
+                      onClick={() => setPreviewVariantDay(day)}
+                      className="py-1.5 px-2.5 rounded-lg bg-indigo-950/40 hover:bg-indigo-900/60 text-indigo-300 border border-indigo-900/50 transition text-xs font-medium flex items-center justify-center gap-1 cursor-pointer shrink-0"
+                      title="Lihat seluruh isi postingan utas lengkap"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>Lihat Draf</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => handleOpenScheduleModal(day)}
-                    className="w-full py-1.5 px-3 rounded-lg bg-zinc-900 hover:bg-zinc-850 text-zinc-200 hover:text-white border border-zinc-800 transition text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="flex-1 py-1.5 px-3 rounded-lg bg-zinc-900 hover:bg-zinc-850 text-zinc-200 hover:text-white border border-zinc-800 transition text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <Clock className="w-3.5 h-3.5 text-zinc-400" />
                     <span>Jadwalkan ke Antrean</span>
@@ -561,6 +592,15 @@ export const CalendarPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleConfirmSchedule} className="space-y-4 text-xs">
+              {schedulingDay.variant && (
+                <div className="p-2.5 rounded-xl bg-indigo-950/40 border border-indigo-900/50 text-[11px] text-indigo-300 flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                  <span>
+                    Draf Utas Lengkap ({schedulingDay.variant.posts.length + (schedulingDay.variant.reply_2?.text ? 1 : 0)} Postingan) otomatis dijadwalkan berurutan ke Threads tanpa ada yang hilang.
+                  </span>
+                </div>
+              )}
+
               {/* Draft Text Preview */}
               <div>
                 <label className="block text-zinc-300 mb-1 font-medium">Teks Draf Utas (Bisa Diubah):</label>
@@ -670,6 +710,112 @@ export const CalendarPage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Pratinjau Draf Utas Lengkap dari Kalender */}
+      {previewVariantDay && previewVariantDay.variant && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
+          <div className="relative w-full max-w-2xl max-h-[85vh] flex flex-col p-6 bg-zinc-950 border border-zinc-850 rounded-2xl shadow-2xl text-left space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-900">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-indigo-950 text-indigo-400 border border-indigo-900/60">
+                  <Sparkles className="w-4 h-4" />
+                </span>
+                <div>
+                  <h3 className="text-sm font-bold text-zinc-100">
+                    Draf Utas Lengkap: {previewVariantDay.pillar}
+                  </h3>
+                  <p className="text-[11px] text-zinc-400">
+                    Semua bagian ({previewVariantDay.variant.posts.length + (previewVariantDay.variant.reply_2?.text ? 1 : 0)} postingan) terjaga utuh.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewVariantDay(null)}
+                className="text-zinc-500 hover:text-white p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* List of Posts */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1 text-xs">
+              {previewVariantDay.variant.posts.map((p, idx) => (
+                <div key={idx} className="p-3.5 rounded-xl bg-zinc-900 border border-zinc-850 space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] text-zinc-400 font-semibold">
+                    <span>{idx === 0 ? "Post Utama (#1) - Hook Pembuka" : `Reply ke-${idx + 1}`}</span>
+                    <span className="font-mono text-zinc-500">{p.text.length} / 500 karakter</span>
+                  </div>
+                  <p className="text-zinc-200 whitespace-pre-wrap leading-relaxed">{p.text}</p>
+                </div>
+              ))}
+
+              {previewVariantDay.variant.reply_2?.text && (
+                <div className="p-3.5 rounded-xl bg-indigo-950/30 border border-indigo-900/50 space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] text-indigo-300 font-semibold">
+                    <span className="flex items-center gap-1.5">
+                      <Send className="w-3 h-3 text-indigo-400" />
+                      <span>Reply #{previewVariantDay.variant.posts.length + 1} (Balasan Penutup / CTA / Kredit)</span>
+                    </span>
+                    <span className="font-mono text-indigo-400/80">
+                      {previewVariantDay.variant.reply_2.text.length} / 500 karakter
+                    </span>
+                  </div>
+                  <p className="text-zinc-200 whitespace-pre-wrap leading-relaxed">
+                    {previewVariantDay.variant.reply_2.text}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-zinc-900 flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const targetVar = previewVariantDay.variant;
+                  setPreviewVariantDay(null);
+                  if (targetVar) {
+                    navigate("/cek", {
+                      state: {
+                        variant: targetVar,
+                        posts: targetVar.posts,
+                        topicTag: targetVar.topic_tag,
+                        reply2Text: targetVar.reply_2?.text,
+                      },
+                    });
+                  }
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-900/60 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+              >
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Buka di Cek Utas</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPreviewVariantDay(null)}
+                  className="px-3 py-1.5 rounded-xl bg-zinc-900 text-zinc-300 hover:text-white text-xs"
+                >
+                  Tutup
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const d = previewVariantDay;
+                    setPreviewVariantDay(null);
+                    handleOpenScheduleModal(d);
+                  }}
+                  className="px-4 py-1.5 rounded-xl bg-zinc-100 text-zinc-950 font-semibold hover:bg-white text-xs cursor-pointer flex items-center gap-1.5"
+                >
+                  <Clock className="w-3.5 h-3.5 text-zinc-950" />
+                  <span>Jadwalkan</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

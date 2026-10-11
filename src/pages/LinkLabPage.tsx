@@ -24,6 +24,9 @@ import {
   Tag,
   Plus,
   Trash2,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { UserProfile, GoalType, GenerationOutput, VariantOutput, CalendarDayItem, NicheType } from "../types";
 import { storage } from "../lib/storage";
@@ -31,16 +34,8 @@ import { retrieveTopPatterns } from "../lib/retrieval";
 import { auditVariant, autoFixVariant } from "../lib/guard";
 import { generateJSON } from "../services/ai";
 import { YoutubeAnglesOutput, AffiliateProductOutput, YoutubeAngleItem } from "../types";
-
-/**
- * Validasi tautan YouTube
- */
-export function isValidYouTubeUrl(url: string): boolean {
-  if (!url || typeof url !== "string") return false;
-  const trimmed = url.trim();
-  const ytRegex = /^(https?:\/\/)?((www|m)\.)?(youtube\.com\/(watch\?.*v=|shorts\/|embed\/|v\/|live\/)|youtu\.be\/)[\w\-]+(\S+)?$/i;
-  return ytRegex.test(trimmed);
-}
+import { fetchYouTubeMetadata, isValidYouTubeUrl, YouTubeMetadata } from "../services/youtubeService";
+import { PublishModal } from "../components/PublishModal";
 
 /**
  * Validasi tautan Affiliate (Shopee, Shope.ee, TikTok, vt.tiktok.com)
@@ -70,8 +65,13 @@ export const LinkLabPage: React.FC = () => {
   const [youtubeInputUrl, setYoutubeInputUrl] = useState("");
   const [youtubeUrlError, setYoutubeUrlError] = useState<string | null>(null);
   const [isAnalyzingVideo, setIsAnalyzingVideo] = useState(false);
+  const [videoAnalysisStep, setVideoAnalysisStep] = useState<string | null>(null);
   const [videoAnalysisError, setVideoAnalysisError] = useState<string | null>(null);
+  const [videoMetadata, setVideoMetadata] = useState<YouTubeMetadata | null>(null);
+  const [additionalNotes, setAdditionalNotes] = useState("");
+  const [showAdditionalNotes, setShowAdditionalNotes] = useState(false);
   const [videoData, setVideoData] = useState<YoutubeAnglesOutput | null>(null);
+  const [showSourceDetails, setShowSourceDetails] = useState(false);
   const [analyzedVideoUrl, setAnalyzedVideoUrl] = useState("");
   const [selectedAngleId, setSelectedAngleId] = useState<number | null>(null);
   const [includeVideoCredit, setIncludeVideoCredit] = useState(true);
@@ -81,6 +81,7 @@ export const LinkLabPage: React.FC = () => {
   const [videoGenError, setVideoGenError] = useState<string | null>(null);
   const [videoResult, setVideoResult] = useState<GenerationOutput | null>(null);
   const [activeVideoVariantIdx, setActiveVideoVariantIdx] = useState(0);
+  const [publishModalVariant, setPublishModalVariant] = useState<VariantOutput | null>(null);
 
   // ==================== MODE 2: AFFILIATE STATE ====================
   const [affiliateInputUrl, setAffiliateInputUrl] = useState("");
@@ -151,14 +152,32 @@ export const LinkLabPage: React.FC = () => {
     }
 
     if (!isValidYouTubeUrl(trimmed)) {
-      setYoutubeUrlError("Jenis link belum didukung");
+      setYoutubeUrlError("Format tautan YouTube tidak valid. Contoh: https://www.youtube.com/watch?v=... atau https://youtu.be/...");
       return;
     }
 
     setIsAnalyzingVideo(true);
+    setVideoAnalysisStep("Memverifikasi & mengambil data asli dari YouTube...");
+
     try {
+      // 1. Ambil data asli dari sumber YouTube (Judul, Kreator, Deskripsi lengkap, Kata Kunci, Babak)
+      const meta = await fetchYouTubeMetadata(trimmed);
+      setVideoMetadata(meta);
+
+      setVideoAnalysisStep("Menganalisis materi asli & meracik 5 ide angle utas...");
+
+      // 2. Berikan data terverifikasi asli ke Gemini AI
       const response = await generateJSON<YoutubeAnglesOutput>("youtubeAngles", {
         youtubeUrl: trimmed,
+        videoId: meta.videoId,
+        actual_video_title: meta.title,
+        actual_creator_name: meta.author,
+        actual_ai_summary: meta.aiSummary || undefined,
+        actual_video_description: meta.description || undefined,
+        actual_keywords: meta.keywords && meta.keywords.length > 0 ? meta.keywords : undefined,
+        actual_chapters: meta.chapters && meta.chapters.length > 0 ? meta.chapters : undefined,
+        actual_duration_minutes: meta.durationMinutes || undefined,
+        additional_notes: additionalNotes.trim() || undefined,
         userProfile: profile,
       });
 
@@ -166,12 +185,25 @@ export const LinkLabPage: React.FC = () => {
         throw new Error("Gemini tidak dapat mengekstrak angle dari video ini. Silakan coba lagi.");
       }
 
-      setVideoData(response);
+      // Pastikan identitas video memakai data asli terverifikasi
+      const finalVideoData: YoutubeAnglesOutput = {
+        ...response,
+        video_title: meta.title || response.video_title,
+        creator_name: meta.author || response.creator_name,
+        thumbnail_url: meta.thumbnailUrl,
+        video_id: meta.videoId,
+        duration_minutes: meta.durationMinutes,
+        chapters: meta.chapters,
+        ai_summary: meta.aiSummary || response.ai_summary,
+        subscriber_count: meta.subscriberCount,
+      };
+
+      setVideoData(finalVideoData);
       setAnalyzedVideoUrl(trimmed);
-      setCustomCreator(response.creator_name || "Kreator");
-      setSelectedAngleId(response.angles[0].id);
+      setCustomCreator(meta.author || response.creator_name || "Kreator");
+      setSelectedAngleId(finalVideoData.angles[0].id);
       setVideoResult(null);
-      showToast("5 ide angle utas berhasil diracik dari video!");
+      showToast("5 ide angle utas berhasil diracik dari materi video asli!");
     } catch (err: any) {
       console.error("Gagal menganalisis video:", err);
       setVideoAnalysisError(
@@ -179,6 +211,7 @@ export const LinkLabPage: React.FC = () => {
       );
     } finally {
       setIsAnalyzingVideo(false);
+      setVideoAnalysisStep(null);
     }
   };
 
@@ -196,12 +229,16 @@ export const LinkLabPage: React.FC = () => {
       const targetGoal = (chosenAngle.suggested_goal as GoalType) || "Jangkauan";
 
       const factsFromVideo = [
-        `Materi Video: "${videoData.video_title}" oleh ${customCreator || videoData.creator_name}`,
-        `Intisari: ${chosenAngle.summary}`,
-        ...(chosenAngle.key_takeaways || []),
+        `Materi Video Asli: "${videoData.video_title}" oleh ${customCreator || videoData.creator_name}`,
+        `Intisari Terpilih: ${chosenAngle.summary}`,
+        ...(videoData.ai_summary ? [`Rangkuman Materi Resmi: ${videoData.ai_summary}`] : []),
+        ...(chosenAngle.key_takeaways || []).map((t) => `Poin Kunci: ${t}`),
+        ...(videoData.chapters && videoData.chapters.length > 0
+          ? [`Babak Terkait: ${videoData.chapters.slice(0, 5).join("; ")}`]
+          : []),
       ];
 
-      const rawIdea = `[Angle Video]: ${chosenAngle.angle_title}\n[Hook Awal]: ${chosenAngle.hook_preview}\n[Konteks]: ${chosenAngle.summary}`;
+      const rawIdea = `[BEDAH VIDEO ASLI]\nJudul Video: "${videoData.video_title}" karya ${customCreator || videoData.creator_name}\nAngle: ${chosenAngle.angle_title}\nHook Awal: ${chosenAngle.hook_preview}\nIntisari Materi: ${chosenAngle.summary}\nPoin Kunci: ${(chosenAngle.key_takeaways || []).join("; ")}`;
       const realFacts = factsFromVideo.join("\n- ");
 
       let ideaDna: any;
@@ -248,10 +285,31 @@ export const LinkLabPage: React.FC = () => {
         })),
         userProfile: profile,
         requestedGoal: targetGoal,
-        goalInstruction:
-          targetGoal !== "Konversi"
-            ? `MUTLAK: Sasaran konten adalah "${targetGoal}". DILARANG KERAS membuat varian Konversi / Lapak / Jualan. DILARANG membuat reply_2 konversi (dilarang ajak cek bio, dilarang DM, dilarang jualan). reply_2 WAJIB berupa konteks tambahan atau pertanyaan diskusi.`
-            : `Sasaran konten adalah "Konversi".`,
+        goalInstruction: `
+INSTRUKSI KHUSUS BEDAH VIDEO LINK LAB (TERVERIFIKASI & HOOK-CENTRIC):
+Utas ini adalah "BEDAH VIDEO / CURATED BREAKDOWN" resmi dari materi video:
+- Judul Video Asli: "${videoData.video_title}"
+- Kreator Asli: "${customCreator || videoData.creator_name}"
+- Angle Terpilih Pengguna: "${chosenAngle.angle_title}"
+- Hook Awal Angle Terpilih: "${chosenAngle.hook_preview}"
+- Intisari Materi Video: ${chosenAngle.summary}
+- Poin Kunci Nyata: ${(chosenAngle.key_takeaways || []).join(", ")}.
+
+ATURAN STRUKTUR & KARAKTER (MUTLAK):
+1. ATURAN KHUSUS POST UTAMA (#1) - WAJIB DIPERSINGKAT & DIAMBIL DARI ANGLE TERPILIH:
+   - Post Utama (#1) WAJIB DIPERSINGKAT JUMLAH KARAKTERNYA (sangat ringkas, target 80–180 karakter, MAKSIMAL 200 karakter).
+   - Post Utama (#1) WAJIB langsung diambil atau diformulasikan dari Hook Awal Angle ("${chosenAngle.hook_preview}") atau judul angle ("${chosenAngle.angle_title}").
+   - Post 1 berfungsi sebagai pengait rasa penasaran yang tajam, punchy, to-the-point tanpa basa-basi atau kata mubazir.
+   - DILARANG menumpuk penjelasan panjang di Post 1. Seluruh pembahasan detail materi video dipindahkan ke Reply berikutnya (Post 2 s/d Reply ke-4).
+
+2. STRUKTUR LENGKAP UTAS (POST UTAMA HINGGA REPLY KE-4):
+   - Post 1: Post Utama (#1) - Hook singkat & premis menghentak dari angle terpilih.
+   - Post 2: Reply ke-2 - Pembahasan babak pertama, bukti nyata, atau premis masalah dari materi video karya ${customCreator || videoData.creator_name}.
+   - Post 3: Reply ke-3 - Intisari mendalam, kerangka kerja konkret, atau poin kunci dari video.
+   - reply_2: Reply ke-4 - Balasan penutup kreator di utasnya sendiri (kredit video & pemicu diskusi santai warga).
+   - Seluruh isi dari Post 1 hingga Reply ke-4 WAJIB mengupas fakta materi asli dari video. DILARANG KERAS mengarang klaim fiktif pribadi.
+   - Sasaran konten: "${targetGoal}". ${targetGoal !== "Konversi" ? "DILARANG jualan/lapak/promosi bio. Reply 4 murni pemantik diskusi santai." : "Reply 4 dapat mengarahkan ke solusi."}
+`.trim(),
       };
 
       const writerOutput = await generateJSON<GenerationOutput>("writer", writerInput);
@@ -280,13 +338,53 @@ export const LinkLabPage: React.FC = () => {
         /promo\s+terbatas/i,
       ];
 
-      const auditedVariants = (writerOutput?.variants || []).map((variant) => {
+      const auditedVariants = (writerOutput?.variants || []).map((variant, vIdx) => {
         let fixedPosts = (variant.posts || []).map((post) => ({
           ...post,
           char_count: (post.text || "").length,
         }));
 
-        let audited = { ...variant, posts: fixedPosts };
+        // Khusus Link Lab: Pastikan Post Utama (#1) dipersingkat jumlah karakternya & diambil dari angle terpilih
+        if (fixedPosts[0]) {
+          let post1 = (fixedPosts[0].text || "").trim();
+
+          // Jika AI membuat Post 1 terlalu panjang (> 200 karakter),
+          // persingkat secara cerdas agar ringkas & punchy, bersumber dari angle terpilih
+          if (post1.length > 200) {
+            const sentences = post1.split(/(?<=[.?!])\s+/);
+            if (sentences.length > 1 && sentences[0].length >= 35 && sentences[0].length <= 190) {
+              post1 = sentences[0];
+            } else if (sentences.length > 2 && (sentences[0].length + sentences[1].length + 1) <= 190) {
+              post1 = `${sentences[0]} ${sentences[1]}`;
+            } else if (chosenAngle.hook_preview && chosenAngle.hook_preview.length <= 200) {
+              post1 = chosenAngle.hook_preview.trim();
+            } else {
+              post1 = post1.slice(0, 180).trim() + "...";
+            }
+          }
+
+          // Untuk varian 1 (rekomendasi utama), jika Post 1 belum identik, selaraskan dengan hook_preview jika relevan
+          if (vIdx === 0 && chosenAngle.hook_preview && chosenAngle.hook_preview.length <= 200) {
+            if (post1.length > 170 || !post1.toLowerCase().includes(chosenAngle.angle_title.toLowerCase().slice(0, 8))) {
+              post1 = chosenAngle.hook_preview.trim();
+            }
+          }
+
+          fixedPosts[0] = {
+            ...fixedPosts[0],
+            text: post1,
+            char_count: post1.length,
+          };
+        }
+
+        let audited = {
+          ...variant,
+          posts: fixedPosts,
+          hooks: [
+            fixedPosts[0]?.text || chosenAngle.hook_preview || chosenAngle.angle_title,
+            ...(variant.hooks || []).slice(1)
+          ]
+        };
 
         // Bersihkan balasan konversi jika sasaran bukan konversi
         if (targetGoal !== "Konversi") {
@@ -567,46 +665,84 @@ ${trimmedUrl}
     showToast("Seluruh draf utas disalin ke clipboard!");
   };
 
+  const handlePublishToThreads = (variant: VariantOutput) => {
+    // Deep clone varian agar seluruh post dari Post Utama hingga Reply ke-4 utuh tanpa mutasi
+    const clonedVariant: VariantOutput = JSON.parse(JSON.stringify(variant));
+    setPublishModalVariant(clonedVariant);
+  };
+
   const handleSaveToCalendar = async (variant: VariantOutput, titlePillar: string) => {
     const currentCalendar = (await storage.getCalendar()) || [];
     const newDayNumber = currentCalendar.length + 1;
+
+    // Deep clone variant agar tidak ada yang hilang atau diubah dari utas Post Utama hingga Reply ke-4
+    const clonedVariant: VariantOutput = JSON.parse(JSON.stringify(variant));
 
     const newCalendarItem: CalendarDayItem = {
       id: `link_${Date.now()}`,
       dayNumber: newDayNumber,
       dayName: `Hari ${newDayNumber}`,
       dateStr: new Date().toISOString().split("T")[0],
-      goal: (variant.goal as GoalType) || "Simpanan",
+      goal: (clonedVariant.goal as GoalType) || "Simpanan",
       pillar: titlePillar.slice(0, 30),
-      ideaPrompt: variant.hooks[0] || variant.posts[0]?.text || "Utas dari Link Lab",
-      cardId: variant.fusion_trace?.card_id || "K01",
-      hookPattern: variant.fusion_trace?.pola_dipinjam || "Pola Rekomendasi Link Lab",
-      format: variant.template || "Rekomendasi",
-      topicTag: variant.topic_tag || "Rekomendasi",
-      timeWIB: variant.best_time_wib || "19.30 - 22.30 WIB",
+      ideaPrompt: clonedVariant.posts[0]?.text || clonedVariant.hooks[0] || "Utas dari Link Lab",
+      cardId: clonedVariant.fusion_trace?.card_id || "K01",
+      hookPattern: clonedVariant.fusion_trace?.pola_dipinjam || clonedVariant.hooks[0] || "Pola Rekomendasi Link Lab",
+      format: clonedVariant.template || "Rekomendasi",
+      topicTag: clonedVariant.topic_tag || "Rekomendasi",
+      timeWIB: clonedVariant.best_time_wib || "19.30 - 22.30 WIB",
       replyActionGoal: "Balas 10-15 komentar pertama dan pantau klik CTA di reply",
       status: "drafted",
+      variant: clonedVariant,
     };
 
     const updatedCalendar = [...currentCalendar, newCalendarItem];
     await storage.saveCalendar(updatedCalendar);
-    showToast("Utas berhasil disimpan ke Kalender Konten!");
+    showToast("Utas lengkap (Post Utama hingga Reply ke-4) berhasil disimpan ke Kalender!");
   };
 
   const handleNavigateToChecker = (variant: VariantOutput) => {
-    const post1 = variant.posts[0]?.text || "";
-    const post2 = variant.posts[1]?.text || "";
-    const tag = variant.topic_tag || "";
-    const reply2 = variant.reply_2?.text || "";
+    // Deep clone variant agar seluruh isi dari Post Utama hingga Reply ke-4 terjaga 100%
+    const clonedVariant: VariantOutput = JSON.parse(JSON.stringify(variant));
 
     navigate("/cek", {
       state: {
-        post1Text: post1,
-        post2Text: post2,
-        topicTag: tag,
-        reply2Text: reply2,
+        variant: clonedVariant,
+        posts: clonedVariant.posts,
+        post1Text: clonedVariant.posts[0]?.text || "",
+        post2Text: clonedVariant.posts[1]?.text || "",
+        post3Text: clonedVariant.posts[2]?.text || "",
+        post4Text: clonedVariant.posts[3]?.text || "",
+        topicTag: clonedVariant.topic_tag || "",
+        reply2Text: clonedVariant.reply_2?.text || "",
+        fromLinkLab: true,
       },
     });
+  };
+
+  const handleApplyOriginalAngleHook = (variantIdx: number) => {
+    if (!videoResult || !videoData || selectedAngleId === null) return;
+    const chosenAngle = videoData.angles.find((a: YoutubeAngleItem) => a.id === selectedAngleId);
+    if (!chosenAngle || !chosenAngle.hook_preview) return;
+
+    const newVariants = [...videoResult.variants];
+    const targetVariant = { ...newVariants[variantIdx] };
+    const newPosts = [...targetVariant.posts];
+    if (newPosts[0]) {
+      newPosts[0] = {
+        ...newPosts[0],
+        text: chosenAngle.hook_preview.trim(),
+        char_count: chosenAngle.hook_preview.trim().length,
+      };
+      targetVariant.posts = newPosts;
+      targetVariant.hooks = [chosenAngle.hook_preview.trim(), ...(targetVariant.hooks || []).slice(1)];
+      newVariants[variantIdx] = targetVariant;
+
+      const updatedResult = { ...videoResult, variants: newVariants };
+      setVideoResult(updatedResult);
+      storage.saveGeneration(updatedResult);
+      showToast("Hook asli dari angle terpilih diterapkan ke Post Utama (#1)!");
+    }
   };
 
   const currentVideoVariant = videoResult?.variants?.[activeVideoVariantIdx];
@@ -715,7 +851,7 @@ ${trimmedUrl}
                   {isAnalyzingVideo ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Menganalisis Video...</span>
+                      <span>{videoAnalysisStep || "Memproses Video..."}</span>
                     </>
                   ) : (
                     <>
@@ -724,6 +860,36 @@ ${trimmedUrl}
                     </>
                   )}
                 </button>
+              </div>
+
+              {/* Accordion Catatan/Transkrip Tambahan (Opsional) */}
+              <div className="pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => setShowAdditionalNotes(!showAdditionalNotes)}
+                  className="text-[11px] text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition inline-flex items-center gap-1 cursor-pointer"
+                >
+                  <span>
+                    {showAdditionalNotes
+                      ? "− Sembunyikan catatan / transkrip khusus"
+                      : "+ Tambah catatan / transkrip khusus (opsional)"}
+                  </span>
+                </button>
+
+                {showAdditionalNotes && (
+                  <div className="mt-2 space-y-1 animate-in fade-in">
+                    <textarea
+                      rows={3}
+                      value={additionalNotes}
+                      onChange={(e) => setAdditionalNotes(e.target.value)}
+                      placeholder="Tempel transkrip, poin penting, atau bagian spesifik video yang ingin ditekankan..."
+                      className="w-full p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-xs text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                    <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                      Opsional: Membantu AI memahami konteks lebih dalam jika deskripsi video sangat ringkas.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Validasi & Pesan Error URL YouTube */}
@@ -750,10 +916,10 @@ ${trimmedUrl}
                 <div className="p-5 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 text-indigo-900 dark:text-indigo-200 text-xs space-y-2 animate-in fade-in">
                   <div className="flex items-center gap-2.5 font-medium">
                     <div className="w-3.5 h-3.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                    <span>Gemini sedang menonton dan memahami video YouTube...</span>
+                    <span>{videoAnalysisStep || "Gemini sedang membedah video YouTube..."}</span>
                   </div>
                   <p className="text-[11px] text-zinc-600 dark:text-zinc-400 pl-6">
-                    Mengekstrak konsep inti, cerita kreator, data empiris, dan memetakan 5 angle utas terbaik sesuai niche Anda.
+                    Mengekstrak judul, kreator, deskripsi lengkap, babak pembahasan dari sumber asli, dan meracik 5 angle utas terbaik sesuai niche Anda.
                   </p>
                 </div>
               )}
@@ -763,38 +929,156 @@ ${trimmedUrl}
           {/* Hasil Video Understanding & Pemilihan 5 Angle Utas */}
           {videoData && (
             <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="space-y-1.5 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <Film className="w-4 h-4 text-red-500 shrink-0" />
-                    <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">
+              <div className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 flex flex-col md:flex-row md:items-start justify-between gap-4">
+                <div className="flex items-start gap-3.5 min-w-0">
+                  {videoData.thumbnail_url && (
+                    <div className="w-28 sm:w-36 aspect-video rounded-xl overflow-hidden bg-zinc-200 dark:bg-zinc-800 shrink-0 border border-zinc-300 dark:border-zinc-700 shadow-2xs relative">
+                      <img
+                        src={videoData.thumbnail_url}
+                        alt={videoData.video_title}
+                        className="w-full h-full object-cover"
+                      />
+                      {typeof videoData.duration_minutes === "number" && videoData.duration_minutes > 0 && (
+                        <span className="absolute bottom-1 right-1 px-1 py-0.2 rounded bg-black/80 text-white font-mono text-[9px]">
+                          {videoData.duration_minutes} mnt
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5 min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                        <Check className="w-3 h-3" />
+                        <span>Sumber Asli Terverifikasi</span>
+                      </span>
+                      {videoData.chapters && videoData.chapters.length > 0 && (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
+                          {videoData.chapters.length} Babak
+                        </span>
+                      )}
+                    </div>
+
+                    <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 line-clamp-2">
                       {videoData.video_title || "Video YouTube Terpilih"}
                     </h3>
-                  </div>
-                  <p className="text-xs text-zinc-600 dark:text-zinc-400 line-clamp-2">
-                    {videoData.video_summary}
-                  </p>
-                  <div className="flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400 pt-0.5">
-                    <span>Kreator:</span>
-                    <span className="font-medium text-zinc-800 dark:text-zinc-200">
-                      {videoData.creator_name || "Tidak terdeteksi"}
-                    </span>
+                    <p className="text-xs text-zinc-600 dark:text-zinc-400 line-clamp-2">
+                      {videoData.video_summary}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400 pt-0.5">
+                      <span>Kreator:</span>
+                      <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                        {videoData.creator_name || "Tidak terdeteksi"}
+                      </span>
+                      {(videoData.subscriber_count || videoMetadata?.subscriberCount) && (
+                        <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">
+                          • {videoData.subscriber_count || videoMetadata?.subscriberCount}
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowSourceDetails(!showSourceDetails)}
+                      className="mt-1 text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>
+                        {showSourceDetails
+                          ? "Sembunyikan Rincian Sumber Asli"
+                          : "Periksa Data Sumber yang Diekstrak dari Link"}
+                      </span>
+                      {showSourceDetails ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                    </button>
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setVideoData(null);
-                    setVideoResult(null);
-                    setYoutubeInputUrl("");
-                  }}
-                  className="px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 text-xs font-medium flex items-center gap-1.5 transition cursor-pointer self-start md:self-auto shrink-0"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Ganti Video</span>
-                </button>
+                <div className="flex items-center gap-2 shrink-0 self-end md:self-start">
+                  {analyzedVideoUrl && (
+                    <a
+                      href={analyzedVideoUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 text-xs font-medium flex items-center gap-1.5 transition"
+                    >
+                      <span>Tonton Video</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVideoData(null);
+                      setVideoMetadata(null);
+                      setVideoResult(null);
+                      setYoutubeInputUrl("");
+                      setAdditionalNotes("");
+                    }}
+                    className="px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 text-xs font-medium flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Ganti Video</span>
+                  </button>
+                </div>
               </div>
+
+              {/* Panel Transparansi Data Sumber Asli */}
+              {showSourceDetails && (
+                <div className="p-4 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-3.5 text-xs animate-in fade-in">
+                  <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800">
+                    <span className="font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                      <Film className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>Data Sumber Otentik dari YouTube</span>
+                    </span>
+                    <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                      ID: {videoData.video_id || videoMetadata?.videoId}
+                    </span>
+                  </div>
+
+                  {(videoData.ai_summary || videoMetadata?.aiSummary) && (
+                    <div className="space-y-1">
+                      <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
+                        Rangkuman Esensi Materi Video:
+                      </span>
+                      <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed bg-indigo-50/50 dark:bg-indigo-950/20 p-2.5 rounded-lg border border-indigo-100 dark:border-indigo-900/30">
+                        {videoData.ai_summary || videoMetadata?.aiSummary}
+                      </p>
+                    </div>
+                  )}
+
+                  {videoData.chapters && videoData.chapters.length > 0 && (
+                    <div className="space-y-1.5">
+                      <span className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">
+                        Babak & Timestamp Terdeteksi ({videoData.chapters.length}):
+                      </span>
+                      <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1">
+                        {videoData.chapters.map((ch, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-mono text-[10px]"
+                          >
+                            {ch}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {videoMetadata?.description ? (
+                    <div className="space-y-1">
+                      <span className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">
+                        Deskripsi Asli dari Kreator:
+                      </span>
+                      <pre className="text-[11px] text-zinc-600 dark:text-zinc-400 font-sans whitespace-pre-wrap leading-relaxed max-h-36 overflow-y-auto bg-zinc-50 dark:bg-zinc-950 p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                        {videoMetadata.description}
+                      </pre>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 p-2 rounded-lg border border-amber-200 dark:border-amber-900/40">
+                      💡 Kreator tidak menyertakan deskripsi teks panjang pada video ini. AI membedah video menggunakan judul, babak/timestamps, dan kata kunci resmi.
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Opsi Kredit Kreator */}
               <div className="p-4 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1023,12 +1307,41 @@ ${trimmedUrl}
                       key={pIdx}
                       className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-850 space-y-2 relative group"
                     >
-                      <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400">
-                        <span className="font-semibold text-zinc-800 dark:text-zinc-300">
-                          {pIdx === 0 ? "Post Utama (#1) - Hook Pembuka" : `Reply ke-${pIdx + 1}`}
-                        </span>
-                        <div className="flex items-center gap-3">
-                          <span>{post.text.length} / 500 karakter</span>
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-zinc-800 dark:text-zinc-300">
+                            {pIdx === 0 ? "Post Utama (#1) - Hook Pembuka" : `Reply ke-${pIdx + 1}`}
+                          </span>
+                          {pIdx === 0 && selectedAngleId !== null && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-medium">
+                              Hook Ringkas dari Angle #{selectedAngleId}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2.5">
+                          <span className={`font-mono ${pIdx === 0 && post.text.length <= 200 ? "text-emerald-600 dark:text-emerald-400 font-medium" : ""}`}>
+                            {post.text.length} / 500 karakter
+                            {pIdx === 0 && post.text.length <= 200 && " (Ringkas)"}
+                          </span>
+
+                          {pIdx === 0 && videoData && selectedAngleId !== null && (() => {
+                            const chosenAngle = videoData.angles.find((a: YoutubeAngleItem) => a.id === selectedAngleId);
+                            if (chosenAngle?.hook_preview && post.text !== chosenAngle.hook_preview.trim()) {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => handleApplyOriginalAngleHook(activeVideoVariantIdx)}
+                                  className="text-[10px] px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition cursor-pointer"
+                                  title="Pakai teks hook asli dari angle yang dipilih"
+                                >
+                                  Terapkan Hook Asli Angle
+                                </button>
+                              );
+                            }
+                            return null;
+                          })()}
+
                           <button
                             type="button"
                             onClick={() => handleCopyPost(post.text, pIdx)}
@@ -1087,6 +1400,17 @@ ${trimmedUrl}
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2.5">
+                    {/* 1. Posting ke Threads Langsung */}
+                    <button
+                      type="button"
+                      onClick={() => handlePublishToThreads(currentVideoVariant)}
+                      className="px-4 py-2 rounded-xl bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-white text-white dark:text-zinc-950 text-xs font-semibold flex items-center gap-2 transition cursor-pointer shadow-xs"
+                    >
+                      <Send className="w-4 h-4" />
+                      <span>Posting ke Threads</span>
+                    </button>
+
+                    {/* 2. Simpan ke Kalender Konten */}
                     <button
                       type="button"
                       onClick={() => handleSaveToCalendar(currentVideoVariant, `Video: ${videoData?.video_title || "YouTube"}`)}
@@ -1096,13 +1420,14 @@ ${trimmedUrl}
                       <span>Simpan ke Kalender</span>
                     </button>
 
+                    {/* 3. Lanjut ke Cek Utas */}
                     <button
                       type="button"
                       onClick={() => handleNavigateToChecker(currentVideoVariant)}
-                      className="px-4 py-2 rounded-xl bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-semibold flex items-center gap-2 transition cursor-pointer shadow-xs"
+                      className="px-4 py-2 rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 text-xs font-semibold flex items-center gap-2 transition cursor-pointer shadow-xs"
                     >
-                      <CheckSquare className="w-4 h-4 text-emerald-400 dark:text-emerald-600" />
-                      <span>Cek Utas</span>
+                      <CheckSquare className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      <span>Lanjut ke Cek Utas</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -1473,6 +1798,17 @@ ${trimmedUrl}
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2.5">
+                    {/* 1. Posting ke Threads Langsung */}
+                    <button
+                      type="button"
+                      onClick={() => handlePublishToThreads(currentAffiliateVariant)}
+                      className="px-4 py-2 rounded-xl bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-white text-white dark:text-zinc-950 text-xs font-semibold flex items-center gap-2 transition cursor-pointer shadow-xs"
+                    >
+                      <Send className="w-4 h-4" />
+                      <span>Posting ke Threads</span>
+                    </button>
+
+                    {/* 2. Simpan ke Kalender */}
                     <button
                       type="button"
                       onClick={() => handleSaveToCalendar(currentAffiliateVariant, `Afiliasi: ${productName}`)}
@@ -1482,13 +1818,14 @@ ${trimmedUrl}
                       <span>Simpan ke Kalender</span>
                     </button>
 
+                    {/* 3. Lanjut ke Cek Utas */}
                     <button
                       type="button"
                       onClick={() => handleNavigateToChecker(currentAffiliateVariant)}
-                      className="px-4 py-2 rounded-xl bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-semibold flex items-center gap-2 transition cursor-pointer shadow-xs"
+                      className="px-4 py-2 rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 text-xs font-semibold flex items-center gap-2 transition cursor-pointer shadow-xs"
                     >
-                      <CheckSquare className="w-4 h-4 text-emerald-400 dark:text-emerald-600" />
-                      <span>Cek Utas</span>
+                      <CheckSquare className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      <span>Lanjut ke Cek Utas</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -1497,6 +1834,15 @@ ${trimmedUrl}
             </div>
           )}
         </div>
+      )}
+
+      {/* Publish Modal untuk Posting / Jadwalkan ke Threads */}
+      {publishModalVariant && (
+        <PublishModal
+          variant={publishModalVariant}
+          isOpen={!!publishModalVariant}
+          onClose={() => setPublishModalVariant(null)}
+        />
       )}
     </div>
   );

@@ -9,6 +9,7 @@ import cronDailyHandler from "./api/cron/daily";
 import publishCronHandler from "./api/cron/publish";
 import threadsHandler from "./api/threads";
 import uploadHandler from "./api/upload";
+import youtubeHandler from "./api/youtube";
 import cron from "node-cron";
 
 dotenv.config();
@@ -34,6 +35,7 @@ app.use("/uploads", express.static(uploadsDir));
 app.all("/api/ai", (req, res) => aiHandler(req, res));
 app.all("/api/threads", (req, res) => threadsHandler(req, res));
 app.all("/api/upload", (req, res) => uploadHandler(req, res));
+app.all("/api/youtube", (req, res) => youtubeHandler(req, res));
 app.all("/api/bank/export", (req, res) => bankExportHandler(req, res));
 app.all("/api/cron/daily", (req, res) => cronDailyHandler(req, res));
 app.all("/api/cron/publish", (req, res) => publishCronHandler(req, res));
